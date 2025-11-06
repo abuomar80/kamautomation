@@ -24,7 +24,7 @@ httpx>=0.28.1
 httpcore>=0.18.0
 urllib3==1.26.14
 certifi==2022.12.7
-folioclient>=0.61.0
+folioclient>=0.61.0,<1.0.0
 
 # Async & Concurrency
 aiofiles>=25.0.0
@@ -84,7 +84,7 @@ colorama==0.4.6
 python-decouple==3.7
 typer>=0.20.0
 rich==13.3.1
-tenacity>=9.0.0
+tenacity>=8.1.0,<9
 semver==2.13.0
 Faker==18.4.0
 favicon==0.7.0
