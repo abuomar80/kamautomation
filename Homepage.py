@@ -22,7 +22,17 @@ authenticator = stauth.Authenticate(
 # Login form - stores authentication info in session_state
 # In streamlit-authenticator 0.2.3, login() doesn't accept location parameter
 # It renders the form in the main area by default
-authenticator.login()
+try:
+    # Try calling login() without parameters (version 0.2.3)
+    authenticator.login()
+except TypeError as e:
+    # If that fails, the method signature might be different
+    # Try with form_name as positional argument (older API)
+    try:
+        authenticator.login('Login', 'main')
+    except:
+        # Last resort: try with just form_name
+        authenticator.login('Login')
 
 # Get authentication status from session_state (stored by authenticator)
 name = st.session_state.get('name')
