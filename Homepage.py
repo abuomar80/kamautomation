@@ -47,28 +47,114 @@ if authentication_status:
         # Fallback: try without location parameter
         authenticator.logout(button_name='Logout')
     
-    # Welcome message and main dashboard
-    # Streamlit automatically detects pages in pages/ folder and creates navigation
-    # This works the same way locally and on Streamlit Cloud
-    st.title(f"Welcome, {name}! 👋")
-    st.markdown("---")
+    # Custom navigation system for Streamlit 1.28.2
+    # Streamlit doesn't auto-detect pages in subdirectories, so we create custom navigation
+    import os
+    import sys
+    import importlib.util
     
-    st.info("""
-    **📋 Navigation:**
+    # Define page structure
+    page_mapping = {
+        "📁 Tenant Configuration": {
+            "Tenant": "pages/Tenant_Configuration/0_Tenant.py",
+            "Basic Configuration": "pages/Tenant_Configuration/1_Basic Configuration.py",
+            "Advanced Configuration": "pages/Tenant_Configuration/2_Advanced Configuration.py",
+            "SIP2 Configuration": "pages/Tenant_Configuration/3_SIP2 Configuration.py",
+            "Default Users": "pages/Tenant_Configuration/4_Default Users.py",
+            "Add Permission": "pages/Tenant_Configuration/5_Add Permission.py",
+            "Z39.50": "pages/Tenant_Configuration/6_Z39.50.py",
+        },
+        "📦 Data Migration": {
+            "Users Import": "pages/Data_Migration/1_Users Import.py",
+            "Circulation Loans": "pages/Data_Migration/2_Circulation Loans.py",
+            "Fines": "pages/Data_Migration/3_Fines.py",
+            "Marc Splitter": "pages/Data_Migration/4_Marc Splitter.py",
+        },
+        "⚙️ Other Configuration": {
+            "Clone Tenant": "pages/Other_Configuration/1_Clone Tenant.py",
+            "Backup Tenant": "pages/Other_Configuration/2_Backup Tenant.py",
+        },
+    }
     
-    Use the sidebar navigation (on the left) to access different pages.
-    Streamlit automatically detects and lists all pages from the `pages/` folder.
+    # Create sidebar navigation
+    st.sidebar.markdown("## 📋 Navigation")
+    st.sidebar.markdown("---")
     
-    All pages are organized by category:
-    - **📁 Tenant Configuration**: Tenant setup and configuration
-    - **📦 Data Migration**: Import users, loans, fines, and MARC data  
-    - **⚙️ Other Configuration**: Clone or backup tenant configurations
-    """)
+    # Track which pages exist
+    available_pages = {}
+    selected_page_path = None
     
-    st.markdown("### 🏠 Dashboard")
-    st.markdown("""
-    Select a page from the sidebar to get started with your FOLIO automation tasks.
-    """)
+    for group_name, pages in page_mapping.items():
+        st.sidebar.markdown(f"### {group_name}")
+        group_available = {}
+        for page_name, page_path in pages.items():
+            # Check if page exists
+            if os.path.exists(page_path):
+                group_available[page_name] = page_path
+                # Create navigation button
+                if st.sidebar.button(page_name, key=f"nav_{group_name}_{page_name}", use_container_width=True):
+                    st.session_state['current_page'] = page_path
+                    st.rerun()
+        if group_available:
+            available_pages[group_name] = group_available
+        st.sidebar.markdown("---")
+    
+    # Get current page from session state
+    current_page = st.session_state.get('current_page')
+    
+    # If no page selected, show welcome/dashboard
+    if not current_page:
+        st.title(f"Welcome, {name}! 👋")
+        st.markdown("---")
+        st.info("""
+        **📋 Navigation:**
+        
+        Use the sidebar navigation (on the left) to access different pages.
+        Click on any page name to load it.
+        """)
+        st.markdown("### 🏠 Dashboard")
+        st.markdown("""
+        Select a page from the sidebar to get started with your FOLIO automation tasks.
+        """)
+    else:
+        # Load and display the selected page
+        if os.path.exists(current_page):
+            try:
+                # Add root directory to path for imports
+                root_dir = os.path.dirname(os.path.abspath(__file__))
+                if root_dir not in sys.path:
+                    sys.path.insert(0, root_dir)
+                
+                # Prepare namespace with necessary imports
+                page_namespace = {
+                    '__name__': '__main__',
+                    '__file__': current_page,
+                    'st': st,
+                    'sys': sys,
+                    'os': os,
+                }
+                
+                # Add common imports
+                try:
+                    from legacy_session_state import legacy_session_state
+                    page_namespace['legacy_session_state'] = legacy_session_state
+                except:
+                    pass
+                
+                # Read and execute page
+                with open(current_page, 'r', encoding='utf-8') as f:
+                    page_code = f.read()
+                
+                compiled_code = compile(page_code, current_page, 'exec')
+                exec(compiled_code, page_namespace)
+                
+            except Exception as e:
+                st.error(f"Error loading page: {str(e)}")
+                st.exception(e)
+        else:
+            st.error(f"Page not found: {current_page}")
+            st.session_state['current_page'] = None
+            st.rerun()
     
 elif authentication_status is False:
     st.error('Username/password is incorrect')
