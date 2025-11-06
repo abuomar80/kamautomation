@@ -47,34 +47,60 @@ if authentication_status:
         # Fallback: try without location parameter
         authenticator.logout(button_name='Logout')
     
-    # Define pages with explicit grouping using st.navigation (Streamlit 1.46.0+)
-    # This creates collapsible sections in the sidebar
-    # Reference: https://docs.streamlit.io/develop/api-reference/navigation/st.navigation
-    pages = {
+    # Navigation for Streamlit 1.28.2 (st.navigation not available in this version)
+    # Use sidebar navigation with page links
+    # Note: Streamlit 1.28.2 auto-detects pages in pages/ folder, but we create manual navigation
+    
+    st.sidebar.title("📋 Navigation")
+    st.sidebar.markdown("---")
+    
+    # Define page groups with display names and file paths
+    page_groups = {
         "📁 Tenant Configuration": [
-            st.Page("pages/Tenant_Configuration/0_Tenant.py", title="Tenant", default=True),
-            st.Page("pages/Tenant_Configuration/1_Basic Configuration.py", title="Basic Configuration"),
-            st.Page("pages/Tenant_Configuration/2_Advanced Configuration.py", title="Advanced Configuration"),
-            st.Page("pages/Tenant_Configuration/3_SIP2 Configuration.py", title="SIP2 Configuration"),
-            st.Page("pages/Tenant_Configuration/4_Default Users.py", title="Default Users"),
-            st.Page("pages/Tenant_Configuration/5_Add Permission.py", title="Add Permission"),
-            st.Page("pages/Tenant_Configuration/6_Z39.50.py", title="Z39.50"),
+            ("Tenant", "pages/Tenant_Configuration/0_Tenant.py"),
+            ("Basic Configuration", "pages/Tenant_Configuration/1_Basic Configuration.py"),
+            ("Advanced Configuration", "pages/Tenant_Configuration/2_Advanced Configuration.py"),
+            ("SIP2 Configuration", "pages/Tenant_Configuration/3_SIP2 Configuration.py"),
+            ("Default Users", "pages/Tenant_Configuration/4_Default Users.py"),
+            ("Add Permission", "pages/Tenant_Configuration/5_Add Permission.py"),
+            ("Z39.50", "pages/Tenant_Configuration/6_Z39.50.py"),
         ],
         "📦 Data Migration": [
-            st.Page("pages/Data_Migration/1_Users Import.py", title="Users Import"),
-            st.Page("pages/Data_Migration/2_Circulation Loans.py", title="Circulation Loans"),
-            st.Page("pages/Data_Migration/3_Fines.py", title="Fines"),
-            st.Page("pages/Data_Migration/4_Marc Splitter.py", title="Marc Splitter"),
+            ("Users Import", "pages/Data_Migration/1_Users Import.py"),
+            ("Circulation Loans", "pages/Data_Migration/2_Circulation Loans.py"),
+            ("Fines", "pages/Data_Migration/3_Fines.py"),
+            ("Marc Splitter", "pages/Data_Migration/4_Marc Splitter.py"),
         ],
         "⚙️ Other Configuration": [
-            st.Page("pages/Other_Configuration/1_Clone Tenant.py", title="Clone Tenant"),
-            st.Page("pages/Other_Configuration/2_Backup Tenant.py", title="Backup Tenant"),
+            ("Clone Tenant", "pages/Other_Configuration/1_Clone Tenant.py"),
+            ("Backup Tenant", "pages/Other_Configuration/2_Backup Tenant.py"),
         ],
     }
     
-    # Create navigation with collapsible groups
-    pg = st.navigation(pages, position="sidebar")
-    pg.run()
+    # Display navigation menu
+    for group_name, pages in page_groups.items():
+        st.sidebar.markdown(f"### {group_name}")
+        for page_name, page_path in pages:
+            if st.sidebar.button(page_name, key=f"nav_{group_name}_{page_name}"):
+                st.session_state['selected_page'] = page_path
+                st.rerun()
+        st.sidebar.markdown("---")
+    
+    # Load and execute selected page
+    selected_page = st.session_state.get('selected_page', "pages/Tenant_Configuration/0_Tenant.py")
+    
+    try:
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("page_module", selected_page)
+        if spec and spec.loader:
+            module = importlib.util.module_from_spec(spec)
+            # Add streamlit to module globals
+            import sys
+            module.__dict__['st'] = st
+            spec.loader.exec_module(module)
+    except Exception as e:
+        st.error(f"Error loading page {selected_page}: {str(e)}")
+        st.info("Please select a page from the sidebar navigation.")
     
 elif authentication_status is False:
     st.error('Username/password is incorrect')
