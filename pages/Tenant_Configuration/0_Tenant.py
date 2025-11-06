@@ -44,7 +44,9 @@ def reset():
 st.title("🔐 Tenant Login")
 st.caption('Connect to your tenant to start configuration. This session will be maintained across all Tenant Configuration pages.')
 
-with st.form("tenant_login_form"):
+# Use unique form key to avoid conflicts when page is loaded dynamically
+form_key = "tenant_login_form_main"
+with st.form(form_key):
     st.text_input("Enter Tenant Username:", key="username_tenant", placeholder="Please enter your username")
     st.text_input("Enter Tenant Password:", key="password", placeholder="Please enter your password", type='password')
     st.text_input("Enter Tenant Name:", placeholder="Please enter tenant name", key="tenant")
@@ -56,9 +58,9 @@ with st.form("tenant_login_form"):
     
     col1, col2 = st.columns(2)
     with col1:
-        submitted = st.form_submit_button("Connect", type="primary", use_container_width=True)
+        submitted = st.form_submit_button("Connect", type="primary", use_container_width=True, key="connect_btn")
     with col2:
-        reset_btn = st.form_submit_button("Reset", use_container_width=True)
+        reset_btn = st.form_submit_button("Reset", use_container_width=True, key="reset_btn")
     
     if submitted:
         token = tenantlogin(
@@ -74,6 +76,7 @@ with st.form("tenant_login_form"):
             st.session_state['tenant_name'] = st.session_state.get('tenant', '')
             st.session_state['okapi_url'] = st.session_state.get('okapi', '')
             st.session_state['tenant_username'] = st.session_state.get('username_tenant', '')
+            st.rerun()
     
     if reset_btn:
         reset()
