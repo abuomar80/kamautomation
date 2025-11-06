@@ -19,10 +19,11 @@ authenticator = stauth.Authenticate(
     config['cookie']['expiry_days'],
 )
 
-# Login form - returns None when location is 'main', authentication info stored in session_state
-authenticator.login(location='main', key='Login')
+# Login form - stores authentication info in session_state
+# In streamlit-authenticator 0.2.3, login() may return tuple or None
+login_result = authenticator.login(location='main')
 
-# Get authentication status from session_state (stored by authenticator)
+# Get authentication status from session_state (always stored by authenticator)
 name = st.session_state.get('name')
 authentication_status = st.session_state.get('authentication_status')
 username = st.session_state.get('username')
