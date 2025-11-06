@@ -105,7 +105,16 @@ if authentication_status:
     # Get current page from session state
     current_page = st.session_state.get('current_page')
     
-    # If no page selected, show welcome/dashboard
+    # If no page selected, default to first available page
+    if not current_page and available_pages:
+        # Set default to first page in first group
+        first_group = list(available_pages.keys())[0]
+        first_page_path = list(available_pages[first_group].values())[0]
+        st.session_state['current_page'] = first_page_path
+        current_page = first_page_path
+        st.rerun()
+    
+    # If still no page selected, show welcome/dashboard
     if not current_page:
         st.title(f"Welcome, {name}! 👋")
         st.markdown("---")
@@ -120,58 +129,73 @@ if authentication_status:
         Select a page from the sidebar to get started with your FOLIO automation tasks.
         """)
     else:
-        # Load and display the selected page using importlib for proper module loading
+        # Load and display the selected page
         if os.path.exists(current_page):
             try:
-                import importlib.util
-                
                 # Add root directory to path for imports
                 root_dir = os.path.dirname(os.path.abspath(__file__))
                 if root_dir not in sys.path:
                     sys.path.insert(0, root_dir)
                 
-                # Load page as a proper module
-                spec = importlib.util.spec_from_file_location("page_module", current_page)
-                if spec is None or spec.loader is None:
-                    raise ImportError(f"Could not load spec for {current_page}")
+                # Read the page file content
+                with open(current_page, 'r', encoding='utf-8') as f:
+                    page_code = f.read()
                 
-                module = importlib.util.module_from_spec(spec)
+                # Prepare namespace with all necessary imports
+                page_namespace = {
+                    '__name__': '__main__',
+                    '__file__': current_page,
+                    'st': st,
+                    'sys': sys,
+                    'os': os,
+                }
                 
-                # Add necessary imports to module namespace
-                module.__dict__['st'] = st
-                module.__dict__['sys'] = sys
-                module.__dict__['os'] = os
-                
-                # Add common imports
+                # Pre-import and add common modules to namespace
                 try:
                     from legacy_session_state import legacy_session_state
-                    module.__dict__['legacy_session_state'] = legacy_session_state
-                except:
+                    page_namespace['legacy_session_state'] = legacy_session_state
+                except ImportError:
                     pass
                 
                 try:
                     import pandas as pd
-                    module.__dict__['pd'] = pd
-                except:
+                    page_namespace['pd'] = pd
+                    page_namespace['pandas'] = pd
+                except ImportError:
                     pass
                 
                 try:
                     import requests
-                    module.__dict__['requests'] = requests
-                except:
+                    page_namespace['requests'] = requests
+                except ImportError:
                     pass
                 
                 try:
                     import yaml
                     from yaml import SafeLoader
-                    module.__dict__['yaml'] = yaml
-                    module.__dict__['SafeLoader'] = SafeLoader
-                except:
+                    page_namespace['yaml'] = yaml
+                    page_namespace['SafeLoader'] = SafeLoader
+                except ImportError:
                     pass
                 
-                # Execute the module
-                spec.loader.exec_module(module)
+                # Compile and execute the page code
+                # Using exec() directly works better with Streamlit's execution model
+                compiled_code = compile(page_code, current_page, 'exec')
+                exec(compiled_code, page_namespace)
                 
+            except ImportError as e:
+                st.error(f"Import error loading page: {str(e)}")
+                st.exception(e)
+                st.info("Make sure all required modules are installed and available.")
+                # Show debug info
+                with st.expander("Debug Information"):
+                    st.write(f"Page path: {current_page}")
+                    st.write(f"Page exists: {os.path.exists(current_page)}")
+                    st.write(f"Root dir: {root_dir}")
+                    st.write(f"Python path includes root: {root_dir in sys.path}")
+            except SyntaxError as e:
+                st.error(f"Syntax error in page file: {str(e)}")
+                st.exception(e)
             except Exception as e:
                 st.error(f"Error loading page: {str(e)}")
                 st.exception(e)
@@ -180,6 +204,7 @@ if authentication_status:
                     st.write(f"Page path: {current_page}")
                     st.write(f"Page exists: {os.path.exists(current_page)}")
                     st.write(f"Error type: {type(e).__name__}")
+                    st.write(f"Root dir: {root_dir}")
         else:
             st.error(f"Page not found: {current_page}")
             if 'current_page' in st.session_state:
