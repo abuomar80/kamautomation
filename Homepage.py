@@ -47,28 +47,116 @@ if authentication_status:
         # Fallback: try without location parameter
         authenticator.logout(button_name='Logout')
     
-    # Welcome message and main content
+    # Welcome message
     st.title(f"Welcome, {name}! 👋")
     st.markdown("---")
     
-    st.info("""
-    **📋 Navigation Instructions:**
+    # Dynamic page discovery and navigation
+    import os
+    import importlib.util
     
-    Use the sidebar navigation (on the left) to access different pages.
-    Streamlit automatically detects and lists all pages from the `pages/` folder.
+    # Define expected pages based on the created folder structure
+    page_mapping = {
+        "📁 Tenant Configuration": {
+            "Tenant": "pages/Tenant_Configuration/0_Tenant.py",
+            "Basic Configuration": "pages/Tenant_Configuration/1_Basic Configuration.py",
+            "Advanced Configuration": "pages/Tenant_Configuration/2_Advanced Configuration.py",
+            "SIP2 Configuration": "pages/Tenant_Configuration/3_SIP2 Configuration.py",
+            "Default Users": "pages/Tenant_Configuration/4_Default Users.py",
+            "Add Permission": "pages/Tenant_Configuration/5_Add Permission.py",
+            "Z39.50": "pages/Tenant_Configuration/6_Z39.50.py",
+        },
+        "📦 Data Migration": {
+            "Users Import": "pages/Data_Migration/1_Users Import.py",
+            "Circulation Loans": "pages/Data_Migration/2_Circulation Loans.py",
+            "Fines": "pages/Data_Migration/3_Fines.py",
+            "Marc Splitter": "pages/Data_Migration/4_Marc Splitter.py",
+        },
+        "⚙️ Other Configuration": {
+            "Clone Tenant": "pages/Other_Configuration/1_Clone Tenant.py",
+            "Backup Tenant": "pages/Other_Configuration/2_Backup Tenant.py",
+        },
+    }
     
-    If you don't see the sidebar navigation, make sure your pages are in the `pages/` directory.
-    """)
+    # Try alternative paths if pages/ folder doesn't exist
+    def find_page_path(page_path):
+        """Try to find the page file in different locations"""
+        # Try original path
+        if os.path.exists(page_path):
+            return page_path
+        # Try without pages/ prefix
+        alt_path = page_path.replace("pages/", "")
+        if os.path.exists(alt_path):
+            return alt_path
+        # Try with different naming
+        base_name = os.path.basename(page_path)
+        if os.path.exists(base_name):
+            return base_name
+        return None
     
-    # Display main dashboard or default content
-    st.markdown("### 🏠 Dashboard")
-    st.markdown("""
-    Select a page from the sidebar to get started:
+    # Create sidebar navigation
+    st.sidebar.title("📋 Navigation")
+    st.sidebar.markdown("---")
     
-    - **Tenant Configuration**: Set up and configure tenant settings
-    - **Data Migration**: Import users, loans, fines, and MARC data
-    - **Other Configuration**: Clone or backup tenant configurations
-    """)
+    # Track available pages
+    available_pages = {}
+    
+    for group_name, pages in page_mapping.items():
+        st.sidebar.markdown(f"### {group_name}")
+        group_pages = {}
+        for page_name, page_path in pages.items():
+            found_path = find_page_path(page_path)
+            if found_path:
+                group_pages[page_name] = found_path
+                if st.sidebar.button(page_name, key=f"nav_{group_name}_{page_name}"):
+                    st.session_state['selected_page'] = found_path
+                    st.rerun()
+        if group_pages:
+            available_pages[group_name] = group_pages
+        st.sidebar.markdown("---")
+    
+    # Load and display selected page
+    selected_page = st.session_state.get('selected_page')
+    
+    if selected_page and os.path.exists(selected_page):
+        try:
+            # Clear previous content
+            spec = importlib.util.spec_from_file_location("page_module", selected_page)
+            if spec and spec.loader:
+                module = importlib.util.module_from_spec(spec)
+                # Make streamlit and other imports available
+                import sys
+                module.__dict__['st'] = st
+                module.__dict__['sys'] = sys
+                # Import common modules that pages might need
+                try:
+                    from legacy_session_state import legacy_session_state
+                    module.__dict__['legacy_session_state'] = legacy_session_state
+                except:
+                    pass
+                spec.loader.exec_module(module)
+        except Exception as e:
+            st.error(f"Error loading page: {str(e)}")
+            st.exception(e)
+    else:
+        # Show dashboard if no page selected or page not found
+        if not available_pages:
+            st.warning("""
+            ⚠️ **No pages found!**
+            
+            Please ensure your page files are in the `pages/` directory or in the root directory.
+            Expected structure:
+            - `pages/0_✅Tenant.py`
+            - `pages/1_⚙️️Basic_Configuration.py`
+            - etc.
+            """)
+        else:
+            st.info("""
+            **📋 Dashboard**
+            
+            Select a page from the sidebar navigation to get started.
+            Available pages are listed in the left sidebar.
+            """)
     
 elif authentication_status is False:
     st.error('Username/password is incorrect')
