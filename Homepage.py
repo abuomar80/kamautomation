@@ -20,16 +20,22 @@ authenticator = stauth.Authenticate(
 )
 
 # Login form - stores authentication info in session_state
-# In streamlit-authenticator 0.2.3, login() may return tuple or None
-login_result = authenticator.login(location='main')
+# In streamlit-authenticator 0.2.3, login() doesn't accept location parameter
+# It renders the form in the main area by default
+authenticator.login()
 
-# Get authentication status from session_state (always stored by authenticator)
+# Get authentication status from session_state (stored by authenticator)
 name = st.session_state.get('name')
 authentication_status = st.session_state.get('authentication_status')
 username = st.session_state.get('username')
 
 if authentication_status:
-    authenticator.logout(button_name='Logout', location='sidebar')
+    # In streamlit-authenticator 0.2.3, logout() may not accept location parameter
+    try:
+        authenticator.logout(button_name='Logout', location='sidebar')
+    except (TypeError, AttributeError):
+        # Fallback: try without location parameter
+        authenticator.logout(button_name='Logout')
     
     # Define pages with explicit grouping using st.navigation (Streamlit 1.46.0+)
     # This creates collapsible sections in the sidebar
