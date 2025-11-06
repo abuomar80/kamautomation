@@ -74,7 +74,8 @@ if authentication_status:
     
     available_pages = {}
     for group_name, pages in page_mapping.items():
-        st.sidebar.markdown(f"### {group_name}")
+        # Create grouped sections with headers
+        st.sidebar.markdown(f"**{group_name}**")
         group_available = {}
         for page_name, page_path in pages.items():
             if os.path.exists(page_path):
@@ -85,8 +86,8 @@ if authentication_status:
                 safe_page = page_name.replace(" ", "_")
                 button_key = f"nav_{safe_group}_{safe_page}"
                 button_type = "primary" if st.session_state.get('current_page') == page_path else "secondary"
-                # Use button click to set page - don't try to access widget state directly
-                clicked = st.sidebar.button(page_name, key=button_key, use_container_width=True, type=button_type)
+                # Use smaller buttons without use_container_width
+                clicked = st.sidebar.button(page_name, key=button_key, use_container_width=False, type=button_type)
                 if clicked:
                     st.session_state['current_page'] = page_path
                     st.rerun()
