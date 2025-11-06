@@ -1,0 +1,14 @@
+credentials:
+  usernames:
+    kam:
+      email: kam@naseej.com
+      name: Kam Support
+      password: $2b$12$9X7U1mS8m0DjlwZEkRYLA.6RoSniu3/TSNIXIUBbykrmeG9NZaHSm
+
+cookie:
+  expiry_days: 30
+  key: 'so3w302o4leld'
+  name: authentication
+preauthorized:
+  emails:
+  - ahmed.awada@naseej.com
