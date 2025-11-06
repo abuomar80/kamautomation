@@ -47,10 +47,6 @@ if authentication_status:
         # Fallback: try without location parameter
         authenticator.logout(button_name='Logout')
     
-    # Welcome message
-    st.title(f"Welcome, {name}! 👋")
-    st.markdown("---")
-    
     # Dynamic page discovery and navigation
     import os
     import importlib.util
@@ -118,23 +114,75 @@ if authentication_status:
     # Load and display selected page
     selected_page = st.session_state.get('selected_page')
     
+    # Show welcome message only if no page is selected
+    if not selected_page:
+        st.title(f"Welcome, {name}! 👋")
+        st.markdown("---")
+    
     if selected_page and os.path.exists(selected_page):
         try:
-            # Clear previous content
-            spec = importlib.util.spec_from_file_location("page_module", selected_page)
-            if spec and spec.loader:
-                module = importlib.util.module_from_spec(spec)
-                # Make streamlit and other imports available
-                import sys
-                module.__dict__['st'] = st
-                module.__dict__['sys'] = sys
-                # Import common modules that pages might need
-                try:
-                    from legacy_session_state import legacy_session_state
-                    module.__dict__['legacy_session_state'] = legacy_session_state
-                except:
-                    pass
-                spec.loader.exec_module(module)
+            # Prepare module namespace with all necessary imports
+            import sys
+            import importlib
+            
+            # Add current directory to Python path so pages can import root modules
+            current_dir = os.path.dirname(os.path.abspath(selected_page))
+            root_dir = os.path.dirname(os.path.abspath(__file__))
+            if root_dir not in sys.path:
+                sys.path.insert(0, root_dir)
+            if current_dir not in sys.path:
+                sys.path.insert(0, current_dir)
+            
+            # Create a comprehensive namespace for the page module
+            page_namespace = {
+                '__name__': '__main__',
+                '__file__': selected_page,
+                'st': st,
+                'sys': sys,
+                'os': os,
+                'importlib': importlib,
+            }
+            
+            # Add common imports that pages might need
+            try:
+                from legacy_session_state import legacy_session_state
+                page_namespace['legacy_session_state'] = legacy_session_state
+            except ImportError:
+                pass
+            
+            # Try to import other common modules that pages might use
+            try:
+                import pandas as pd
+                page_namespace['pd'] = pd
+                page_namespace['pandas'] = pd
+            except:
+                pass
+            
+            try:
+                import requests
+                page_namespace['requests'] = requests
+            except:
+                pass
+            
+            try:
+                import yaml
+                page_namespace['yaml'] = yaml
+            except:
+                pass
+            
+            # Read and execute the page file
+            with open(selected_page, 'r', encoding='utf-8') as f:
+                page_code = f.read()
+            
+            # Compile and execute the page code
+            compiled_code = compile(page_code, selected_page, 'exec')
+            exec(compiled_code, page_namespace)
+            
+        except FileNotFoundError:
+            st.error(f"Page file not found: {selected_page}")
+        except SyntaxError as e:
+            st.error(f"Syntax error in page file: {str(e)}")
+            st.code(page_code if 'page_code' in locals() else '', language='python')
         except Exception as e:
             st.error(f"Error loading page: {str(e)}")
             st.exception(e)
@@ -146,17 +194,26 @@ if authentication_status:
             
             Please ensure your page files are in the `pages/` directory or in the root directory.
             Expected structure:
-            - `pages/0_✅Tenant.py`
-            - `pages/1_⚙️️Basic_Configuration.py`
+            - `pages/Tenant_Configuration/0_Tenant.py`
+            - `pages/Tenant_Configuration/1_Basic Configuration.py`
             - etc.
             """)
         else:
-            st.info("""
-            **📋 Dashboard**
-            
-            Select a page from the sidebar navigation to get started.
-            Available pages are listed in the left sidebar.
-            """)
+            # Default: show first available page or dashboard
+            if not selected_page:
+                # Set default page to first available
+                first_group = list(available_pages.keys())[0] if available_pages else None
+                if first_group:
+                    first_page = list(available_pages[first_group].values())[0]
+                    st.session_state['selected_page'] = first_page
+                    st.rerun()
+            else:
+                st.info("""
+                **📋 Dashboard**
+                
+                Select a page from the sidebar navigation to get started.
+                Available pages are listed in the left sidebar.
+                """)
     
 elif authentication_status is False:
     st.error('Username/password is incorrect')
