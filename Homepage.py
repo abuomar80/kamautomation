@@ -47,60 +47,28 @@ if authentication_status:
         # Fallback: try without location parameter
         authenticator.logout(button_name='Logout')
     
-    # Navigation for Streamlit 1.28.2 (st.navigation not available in this version)
-    # Use sidebar navigation with page links
-    # Note: Streamlit 1.28.2 auto-detects pages in pages/ folder, but we create manual navigation
+    # Welcome message and main content
+    st.title(f"Welcome, {name}! 👋")
+    st.markdown("---")
     
-    st.sidebar.title("📋 Navigation")
-    st.sidebar.markdown("---")
+    st.info("""
+    **📋 Navigation Instructions:**
     
-    # Define page groups with display names and file paths
-    page_groups = {
-        "📁 Tenant Configuration": [
-            ("Tenant", "pages/Tenant_Configuration/0_Tenant.py"),
-            ("Basic Configuration", "pages/Tenant_Configuration/1_Basic Configuration.py"),
-            ("Advanced Configuration", "pages/Tenant_Configuration/2_Advanced Configuration.py"),
-            ("SIP2 Configuration", "pages/Tenant_Configuration/3_SIP2 Configuration.py"),
-            ("Default Users", "pages/Tenant_Configuration/4_Default Users.py"),
-            ("Add Permission", "pages/Tenant_Configuration/5_Add Permission.py"),
-            ("Z39.50", "pages/Tenant_Configuration/6_Z39.50.py"),
-        ],
-        "📦 Data Migration": [
-            ("Users Import", "pages/Data_Migration/1_Users Import.py"),
-            ("Circulation Loans", "pages/Data_Migration/2_Circulation Loans.py"),
-            ("Fines", "pages/Data_Migration/3_Fines.py"),
-            ("Marc Splitter", "pages/Data_Migration/4_Marc Splitter.py"),
-        ],
-        "⚙️ Other Configuration": [
-            ("Clone Tenant", "pages/Other_Configuration/1_Clone Tenant.py"),
-            ("Backup Tenant", "pages/Other_Configuration/2_Backup Tenant.py"),
-        ],
-    }
+    Use the sidebar navigation (on the left) to access different pages.
+    Streamlit automatically detects and lists all pages from the `pages/` folder.
     
-    # Display navigation menu
-    for group_name, pages in page_groups.items():
-        st.sidebar.markdown(f"### {group_name}")
-        for page_name, page_path in pages:
-            if st.sidebar.button(page_name, key=f"nav_{group_name}_{page_name}"):
-                st.session_state['selected_page'] = page_path
-                st.rerun()
-        st.sidebar.markdown("---")
+    If you don't see the sidebar navigation, make sure your pages are in the `pages/` directory.
+    """)
     
-    # Load and execute selected page
-    selected_page = st.session_state.get('selected_page', "pages/Tenant_Configuration/0_Tenant.py")
+    # Display main dashboard or default content
+    st.markdown("### 🏠 Dashboard")
+    st.markdown("""
+    Select a page from the sidebar to get started:
     
-    try:
-        import importlib.util
-        spec = importlib.util.spec_from_file_location("page_module", selected_page)
-        if spec and spec.loader:
-            module = importlib.util.module_from_spec(spec)
-            # Add streamlit to module globals
-            import sys
-            module.__dict__['st'] = st
-            spec.loader.exec_module(module)
-    except Exception as e:
-        st.error(f"Error loading page {selected_page}: {str(e)}")
-        st.info("Please select a page from the sidebar navigation.")
+    - **Tenant Configuration**: Set up and configure tenant settings
+    - **Data Migration**: Import users, loans, fines, and MARC data
+    - **Other Configuration**: Clone or backup tenant configurations
+    """)
     
 elif authentication_status is False:
     st.error('Username/password is incorrect')
