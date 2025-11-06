@@ -158,7 +158,7 @@ if confirm_sip:
         if not tenant or not okapi:
             st.error("⚠️ Tenant connection information is missing. Please go back to Tenant page and connect again.")
             st.info("💡 **To fix this:**\n1. Go to **Tenant** page (in sidebar)\n2. Enter **Tenant Name**, **Username**, **Password**\n3. Select **Okapi URL** from dropdown\n4. Click **Connect** button\n5. Wait for **'Connected! ✅'** success message\n6. Then return to this page")
-            return
+            st.stop()
         
         if 'sc_ip' not in st.session_state:
             st.session_state.sc_ip=''
