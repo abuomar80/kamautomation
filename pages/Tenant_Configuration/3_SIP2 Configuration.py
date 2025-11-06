@@ -20,10 +20,14 @@ def servicepoint():
     Retrieves service points from the Okapi API and normalizes the data into a pandas dataframe
     :return: pandas dataframe containing the service point information
     """
-    header = {"x-okapi-tenant": st.session_state.tenant, "x-okapi-token": st.session_state.token}
+    # Get tenant and okapi with fallback to copied keys
+    tenant = st.session_state.get('tenant') or st.session_state.get('tenant_name', '')
+    okapi = st.session_state.get('okapi') or st.session_state.get('okapi_url', '')
+    token = st.session_state.get('token')
+    header = {"x-okapi-tenant": tenant, "x-okapi-token": token}
     # Endpoint for service points with a limit of 1000
     end_point_service = "service-points?limit=1000"
-    url_service = f"{st.session_state.okapi}/{end_point_service}"
+    url_service = f"{okapi}/{end_point_service}"
     # GET request to retrieve service points
     response = requests.get(url_service, headers=header).json()
     # Normalize the json data into a dataframe
@@ -40,10 +44,15 @@ def sip(okapi, tenant, tokens, spoint1, df):
     end_point_config_post = "configurations/entries"
     end_point_service = "service-points?limit=1000"
 
-    url_config = f"{st.session_state.okapi}/{end_point_config}"
-    url_service = f"{st.session_state.okapi}/{end_point_service}"
-    url_config_post = f"{st.session_state.okapi}/{end_point_config_post}"
-    headers = {"x-okapi-tenant": f"{st.session_state.tenant}", "x-okapi-token": f"{st.session_state.token}"}
+    # Get tenant and okapi with fallback to copied keys
+    tenant_val = st.session_state.get('tenant') or st.session_state.get('tenant_name', '')
+    okapi_val = st.session_state.get('okapi') or st.session_state.get('okapi_url', '')
+    token_val = st.session_state.get('token')
+
+    url_config = f"{okapi_val}/{end_point_config}"
+    url_service = f"{okapi_val}/{end_point_service}"
+    url_config_post = f"{okapi_val}/{end_point_config_post}"
+    headers = {"x-okapi-tenant": f"{tenant_val}", "x-okapi-token": f"{token_val}"}
     response = requests.get(url_config, headers=headers).json()
 
     acsTenantConfig = pd.json_normalize(response, record_path="configs")
@@ -52,7 +61,7 @@ def sip(okapi, tenant, tokens, spoint1, df):
     ]
 
     if len(acsTenantConfig) < 1:
-        headers = {"x-okapi-tenant": f"{st.session_state.tenant}", "x-okapi-token": f"{st.session_state.token}"}
+        headers = {"x-okapi-tenant": f"{tenant_val}", "x-okapi-token": f"{token_val}"}
         todo = {
             "module": "edge-sip2",
             "configName": "acsTenantConfig",
@@ -86,11 +95,11 @@ def sip(okapi, tenant, tokens, spoint1, df):
                 ]
                 for j in selfCheckoutConfig["id"]:
                     print(j)
-                    del_url = f"{okapi}/{end_point_config_post}"
+                    del_url = f"{okapi_val}/{end_point_config_post}"
                     delt = requests.delete(del_url + "/" + j, headers=headers)
 
 
-    headers = {"x-okapi-tenant": f"{st.session_state.tenant}", "x-okapi-token": f"{st.session_state.token}"}
+    headers = {"x-okapi-tenant": f"{tenant_val}", "x-okapi-token": f"{token_val}"}
     # Get service point ID from dataframe
     spoint2 = df.loc[df["name"] == spoint1, "id"].item()
     todo = {
@@ -142,13 +151,22 @@ confirm_sip=st.checkbox('Confirm', key='confirm', disabled=confirm_disabled,on_c
 if confirm_sip:
     st.title("Sip Configuration")
     if st.session_state.allow_tenant:
+        # Get tenant and okapi with fallback to copied keys
+        tenant = st.session_state.get('tenant') or st.session_state.get('tenant_name', '')
+        okapi = st.session_state.get('okapi') or st.session_state.get('okapi_url', '')
+        
+        if not tenant or not okapi:
+            st.error("⚠️ Tenant connection information is missing. Please go back to Tenant page and connect again.")
+            st.info("💡 **To fix this:**\n1. Go to **Tenant** page (in sidebar)\n2. Enter **Tenant Name**, **Username**, **Password**\n3. Select **Okapi URL** from dropdown\n4. Click **Connect** button\n5. Wait for **'Connected! ✅'** success message\n6. Then return to this page")
+            return
+        
         if 'sc_ip' not in st.session_state:
             st.session_state.sc_ip=''
         sip2_tenants = {
                 "scTenants": [
                     {
                         "scSubnet": "127.0.0.1/24",
-                        "tenant": f"{st.session_state.tenant}",
+                        "tenant": f"{tenant}",
                         "errorDetectionEnabled": True,
                         "fieldDelimiter": "|",
                         "charset": "utf-8",
@@ -159,7 +177,7 @@ if confirm_sip:
 
         sip2 = {
                 "port": 6443,
-                "okapiUrl": f"{st.session_state.okapi}",
+                "okapiUrl": f"{okapi}",
                 "tenantConfigRetrieverOptions": {
                     "scanPeriod": 300000,
                     "stores": [
@@ -194,7 +212,7 @@ if confirm_sip:
                 st.session_state.sip2click=True
             if st.session_state.sip2click:
                 for i in st.session_state.spoint1:
-                    sip(st.session_state.okapi, st.session_state.tenant, st.session_state.token, i, df)
+                    sip(okapi, tenant, st.session_state.get('token'), i, df)
                 sipconfig = st.success("Sip Configured!", icon="✅")
                 st.link_button('Download Java','https://download.oracle.com/java/21/latest/jdk-21_windows-x64_bin.exe')
                 st.link_button('Download Jar File', 'https://github.com/medadadmin/sip2-edge/releases/download/Sip2-Edge-Juniper/edge-sip2-fat.jar')
