@@ -149,7 +149,11 @@ if st.session_state.allow_tenant:
                     if not all([tenant, okapi, token]):
                         return False, "Missing tenant info"
 
-                    definitions = getattr(extras, "MARC_TEMPLATE_DEFINITIONS", [])
+                    normalized_fn = getattr(extras, "_get_normalized_templates", None)
+                    if callable(normalized_fn):
+                        definitions = normalized_fn()
+                    else:
+                        definitions = getattr(extras, "MARC_TEMPLATE_DEFINITIONS", [])
                     module_config = getattr(extras, "MARC_TEMPLATE_MODULE_CONFIG", {})
 
                     if not definitions:

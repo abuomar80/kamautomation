@@ -3,6 +3,7 @@ import asyncio
 import json
 import re
 import uuid
+import copy
 import streamlit as st
 from legacy_session_state import legacy_session_state
 import requests
@@ -23560,6 +23561,43 @@ MARC_TEMPLATE_MODULE_CONFIG = {
 }
 
 
+def _contains_arabic(text: str) -> bool:
+    return any(
+        ('\u0600' <= ch <= '\u06FF') or
+        ('\u0750' <= ch <= '\u077F') or
+        ('\u08A0' <= ch <= '\u08FF')
+        for ch in text
+    )
+
+
+def _normalize_encoding(value):
+    if isinstance(value, str):
+        if _contains_arabic(value):
+            return value
+        if any(ord(ch) > 127 for ch in value):
+            try:
+                candidate = value.encode('latin-1').decode('utf-8')
+            except UnicodeError:
+                return value
+            else:
+                if _contains_arabic(candidate) or candidate != value:
+                    return candidate
+        return value
+    if isinstance(value, list):
+        return [_normalize_encoding(item) for item in value]
+    if isinstance(value, dict):
+        return {key: _normalize_encoding(val) for key, val in value.items()}
+    return value
+
+
+def _get_normalized_templates():
+    normalized = []
+    for template in MARC_TEMPLATE_DEFINITIONS:
+        normalized.append(_normalize_encoding(copy.deepcopy(template)))
+    return normalized
+
+
+
 # Set logging to WARNING level to suppress debug output
 logging.basicConfig(level=logging.WARNING)
 
@@ -23774,7 +23812,7 @@ async def ensure_marc_templates():
     }
 
     templates_by_module = {}
-    for template_def in MARC_TEMPLATE_DEFINITIONS:
+    for template_def in _get_normalized_templates():
         module = template_def.get("module")
         if not module:
             continue
@@ -23897,16 +23935,16 @@ async def ensure_marc_templates():
                 f"configName=={content_config} and code=={template_id})"
             )
 
-        try:
-            content_resp = requests.get(content_query, headers=headers, timeout=DEFAULT_TIMEOUT)
-        except Exception as exc:
-            logging.error(
-                "Failed to fetch %s template content %s: %s",
-                module,
-                template_id,
-                exc
-            )
-            return False, f"{module}:{template_id} content fetch failed: {exc}"
+            try:
+                content_resp = requests.get(content_query, headers=headers, timeout=DEFAULT_TIMEOUT)
+            except Exception as exc:
+                logging.error(
+                    "Failed to fetch %s template content %s: %s",
+                    module,
+                    template_id,
+                    exc
+                )
+                return False, f"{module}:{template_id} content fetch failed: {exc}"
 
             if content_resp.status_code != 200:
                 logging.error(
@@ -24831,7 +24869,7 @@ def fetch_marc_templates_status():
     overall_success = True
 
     templates_by_module = {}
-    for template in MARC_TEMPLATE_DEFINITIONS:
+    for template in _get_normalized_templates():
         module = template.get("module")
         if not module:
             continue
