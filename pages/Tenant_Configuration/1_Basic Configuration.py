@@ -2,7 +2,7 @@ import streamlit as st
 from legacy_session_state import legacy_session_state
 legacy_session_state()
 from extras import (profile_picture,price_note,loan_type,default_job_profile,alt_types,
-                    post_locale, addDepartments,circ_other,circ_loanhist,export_profile,configure_tenant,
+                    post_locale, addDepartments,circ_other,circ_loanhist,export_profile,configure_tenant,ensure_address_types,
                     create_instance_for_analytics,verify_instance_exists,verify_instance_by_search,
                     post_holdings,get_holdings_id,post_inventory_item,post_loan_period,post_patron_notice_policy,
                     post_overdue_fines_policy,post_lost_item_fees_policy,
@@ -199,6 +199,7 @@ if st.session_state.allow_tenant:
                 async def main():
                     tasks = [
                         configure_tenant(),
+                        ensure_address_types(),
                         price_note(),
                         loan_type(),
                         default_job_profile(),

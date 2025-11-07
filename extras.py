@@ -1,6 +1,8 @@
 import aiohttp
 import asyncio
 import json
+import re
+import uuid
 import streamlit as st
 from legacy_session_state import legacy_session_state
 import requests
@@ -66,6 +68,14 @@ async def configure_tenant():
     tasks = []
     smtp_exists = False
     marc_exists = False
+    help_exists = False
+    help_url = "https://docs.medad.com/"
+    help_payload = {
+        "module": "MISCELLANEOUS",
+        "configName": "HELP_URL",
+        "enabled": "true",
+        "value": json.dumps({"ar": help_url, "en": help_url, "fr": help_url})
+    }
 
     for config in response["configs"]:
         if config["module"] == "USERSBL" and config["configName"] == "smtp" and config["code"] == "FOLIO_HOST":
@@ -77,12 +87,32 @@ async def configure_tenant():
                 st.warning('Please Check Your Job Load Profile Manually!')
             # Update existing marc configuration
             tasks.append(async_request("PUT", f"{post_url}/{config['id']}", headers=headers, data=json.dumps(marc)))
+        elif config["module"] == "MISCELLANEOUS" and config["configName"] == "HELP_URL":
+            help_exists = True
+            # Update if value is missing or different from desired URL
+            try:
+                existing_value = json.loads(config.get("value") or "{}")
+            except json.JSONDecodeError:
+                existing_value = {}
+
+            should_update = any(existing_value.get(lang) != help_url for lang in ["ar", "en", "fr"]) or not existing_value
+
+            if should_update:
+                tasks.append(async_request(
+                    "PUT",
+                    f"{post_url}/{config['id']}",
+                    headers=headers,
+                    data=json.dumps(help_payload)
+                ))
 
     if not smtp_exists:
         tasks.append(async_request("POST", post_url, headers=headers, data=json.dumps(reset)))
 
     if not marc_exists:
         tasks.append(async_request("POST", post_url, headers=headers, data=json.dumps(marc)))
+
+    if not help_exists:
+        tasks.append(async_request("POST", post_url, headers=headers, data=json.dumps(help_payload)))
 
     await asyncio.gather(*tasks)
 
@@ -107,6 +137,44 @@ async def price_note():
     else:
         # Item note type already exists - no output needed
         pass
+
+
+async def ensure_address_types():
+    """Ensure required patron address types are present (Home, Work)."""
+    url = f"{st.session_state.okapi}/addresstypes"
+    headers = {"x-okapi-tenant": f"{st.session_state.tenant}", "x-okapi-token": f"{st.session_state.token}"}
+
+    try:
+        existing_response = await async_request("GET", url, headers=headers)
+    except Exception as exc:
+        logging.error(f"Failed to fetch address types: {exc}")
+        return
+
+    existing_types = set()
+    if isinstance(existing_response, dict):
+        raw_types = existing_response.get("addressTypes") or existing_response.get("addresstypes") or []
+        for entry in raw_types:
+            name = entry.get("addressType") or entry.get("name")
+            if name:
+                existing_types.add(name.lower())
+
+    desired_types = ["Home", "Work"]
+    create_tasks = []
+
+    for address_type in desired_types:
+        if address_type.lower() in existing_types:
+            continue
+        payload = {
+            "addressType": address_type,
+            "id": str(uuid.uuid4())
+        }
+        create_tasks.append(async_request("POST", url, headers=headers, data=json.dumps(payload)))
+
+    if create_tasks:
+        try:
+            await asyncio.gather(*create_tasks)
+        except Exception as exc:
+            logging.error(f"Failed to create address types: {exc}")
 
 
 async def loan_type():
@@ -668,27 +736,48 @@ def verify_instance_by_search():
 
 def create_dummy_suppressed_location():
     """Create a dummy suppressed location with full tree structure (Institution, Campus, Library, Location) for analytics"""
+    tenant_raw = st.session_state.get('tenant') or st.session_state.get('tenant_name', '')
+    okapi = st.session_state.get('okapi') or st.session_state.get('okapi_url', '')
+    token = st.session_state.get('token')
+
+    if not tenant_raw or not okapi or not token:
+        logging.error("Cannot create dummy location because tenant or Okapi information is missing")
+        if hasattr(st, 'error'):
+            st.error("⚠️ Tenant connection information is missing. Please connect to a tenant and try again.")
+        return None
+
     headers = {
-        "x-okapi-tenant": f"{st.session_state.tenant}",
-        "x-okapi-token": f"{st.session_state.token}",
+        "x-okapi-tenant": tenant_raw,
+        "x-okapi-token": token,
         "Content-Type": "application/json"
     }
-    
-    # Dummy location names - all suppressed
-    dummy_institution_name = "Analytics Dummy Institution"
-    dummy_institution_code = "ANALYTICS_DUMMY_INST"
-    dummy_campus_name = "Analytics Dummy Campus"
-    dummy_campus_code = "ANALYTICS_DUMMY_CAMP"
-    dummy_library_name = "Analytics Dummy Library"
-    dummy_library_code = "ANALYTICS_DUMMY_LIB"
-    dummy_location_name = "Analytics Dummy Location"
-    dummy_location_code = "ANALYTICS_DUMMY_LOC"
-    dummy_service_point_name = "Analytics Dummy Service Point"
-    dummy_service_point_code = "ANALYTICS_DUMMY_SP"
-    
+
+    # Build consistent names/codes using tenant prefix
+    base_name = re.sub(r'[^A-Za-z0-9]+', '_', tenant_raw).strip('_') or 'tenant'
+    base_name_lower = base_name.lower()
+    base_name_upper = base_name.upper()
+
+    def name_with_suffix(suffix: str) -> str:
+        return f"{base_name_lower}__{suffix}"
+
+    def code_with_suffix(suffix: str) -> str:
+        code_value = f"{base_name_upper}__{suffix}"
+        return code_value[:50]
+
+    dummy_institution_name = name_with_suffix("institution")
+    dummy_institution_code = code_with_suffix("INSTITUTION")
+    dummy_campus_name = name_with_suffix("campus")
+    dummy_campus_code = code_with_suffix("CAMPUS")
+    dummy_library_name = name_with_suffix("library")
+    dummy_library_code = code_with_suffix("LIBRARY")
+    dummy_location_name = name_with_suffix("location")
+    dummy_location_code = code_with_suffix("LOCATION")
+    dummy_service_point_name = name_with_suffix("service_point")
+    dummy_service_point_code = code_with_suffix("SP")
+
     try:
         # Step 1: Check if location already exists
-        location_check_url = f'{st.session_state.okapi}/locations?query=code=={dummy_location_code}'
+        location_check_url = f'{okapi}/locations?query=code=={dummy_location_code}'
         location_check = requests.get(location_check_url, headers=headers)
         if location_check.status_code == 200:
             location_data = location_check.json()
@@ -698,8 +787,8 @@ def create_dummy_suppressed_location():
                 return location_id
         
         # Step 2: Create or get Service Point
-        sp_url = f'{st.session_state.okapi}/service-points'
-        sp_check_url = f'{st.session_state.okapi}/service-points?query=code=={dummy_service_point_code}'
+        sp_url = f'{okapi}/service-points'
+        sp_check_url = f'{okapi}/service-points?query=code=={dummy_service_point_code}'
         sp_check = requests.get(sp_check_url, headers=headers)
         sp_id = None
         
@@ -734,8 +823,8 @@ def create_dummy_suppressed_location():
             return None
         
         # Step 3: Create or get Institution
-        inst_url = f'{st.session_state.okapi}/location-units/institutions'
-        inst_check_url = f'{st.session_state.okapi}/location-units/institutions?query=code=={dummy_institution_code}'
+        inst_url = f'{okapi}/location-units/institutions'
+        inst_check_url = f'{okapi}/location-units/institutions?query=code=={dummy_institution_code}'
         inst_check = requests.get(inst_check_url, headers=headers)
         inst_id = None
         
@@ -763,8 +852,8 @@ def create_dummy_suppressed_location():
             return None
         
         # Step 4: Create or get Campus
-        campus_url = f'{st.session_state.okapi}/location-units/campuses'
-        campus_check_url = f'{st.session_state.okapi}/location-units/campuses?query=code=={dummy_campus_code}'
+        campus_url = f'{okapi}/location-units/campuses'
+        campus_check_url = f'{okapi}/location-units/campuses?query=code=={dummy_campus_code}'
         campus_check = requests.get(campus_check_url, headers=headers)
         campus_id = None
         
@@ -795,8 +884,8 @@ def create_dummy_suppressed_location():
             return None
         
         # Step 5: Create or get Library
-        lib_url = f'{st.session_state.okapi}/location-units/libraries'
-        lib_check_url = f'{st.session_state.okapi}/location-units/libraries?query=code=={dummy_library_code}'
+        lib_url = f'{okapi}/location-units/libraries'
+        lib_check_url = f'{okapi}/location-units/libraries?query=code=={dummy_library_code}'
         lib_check = requests.get(lib_check_url, headers=headers)
         lib_id = None
         
@@ -827,7 +916,7 @@ def create_dummy_suppressed_location():
             return None
         
         # Step 6: Create Location (suppressed)
-        location_url = f'{st.session_state.okapi}/locations'
+        location_url = f'{okapi}/locations'
         location_data = {
             "name": dummy_location_name,
             "code": dummy_location_code,
@@ -848,7 +937,7 @@ def create_dummy_suppressed_location():
             return location_id
         elif location_response.status_code == 422:
             # Already exists, get it
-            location_check_final = requests.get(f'{st.session_state.okapi}/locations?query=code=={dummy_location_code}', headers=headers)
+            location_check_final = requests.get(f'{okapi}/locations?query=code=={dummy_location_code}', headers=headers)
             if location_check_final.status_code == 200:
                 location_data = location_check_final.json()
                 if location_data.get('locations') and len(location_data['locations']) > 0:
