@@ -230,7 +230,7 @@ async def ensure_address_types():
 async def loan_type():
     tenant, okapi, token = _get_connection_details()
     if not tenant:
-        return False
+        return False, "Missing tenant info"
 
     loan_types_url = f"{okapi}/loan-types"
     headers = {"x-okapi-tenant": tenant, "x-okapi-token": token}
@@ -248,9 +248,9 @@ async def loan_type():
     if loan_type_name.lower() not in existing_loan_types:
         data = {"name": loan_type_name}
         await async_request("POST", loan_types_url, headers=headers, data=json.dumps(data))
-    else:
-        # Loan type already exists - no output needed
-        pass
+        return True, f"Created {loan_type_name}"
+
+    return True, f"Existing {loan_type_name}"
 
 
 async def default_job_profile():
@@ -1587,63 +1587,92 @@ def send_completion_email(config_type, output_log, tenant_name):
     from email.mime.multipart import MIMEMultipart
     
     try:
-        # Email configuration - using Gmail App Password
         sender_email = "ilsconfigration@gmail.com"
-        sender_password = "pmgargvvawxpltow"  # Gmail App Password
+        sender_password = "pmgargvvawxpltow"
         receiver_email = "ilsconfigration@gmail.com"
+        tenant_upper = tenant_name.upper()
+        subject = f"{tenant_upper}_{config_type.upper()} CONFIGURATION Completed"
         
-        # Create message
-        msg = MIMEMultipart()
+        msg = MIMEMultipart('alternative')
         msg['From'] = sender_email
         msg['To'] = receiver_email
-        # Subject format: TENANTNAME_CONFIGURATIONTYPE Completed
-        subject = f"{tenant_name.upper()}_{config_type.upper()} CONFIGURATION Completed"
         msg['Subject'] = subject
         
-        # Create email body with tenant name at the top
-        body = f"""
-Tenant: {tenant_name.upper()}
+        plain_body = f"Tenant: {tenant_upper}\n\n{config_type} configuration has completed.\n\nDetails:\n{output_log}\n\nPlease review the tenant to confirm everything is set up correctly."
 
-{config_type} Configuration has been completed successfully.
+        html_body = f"""
+        <html>
+          <head>
+            <style>
+              body {{ font-family: Arial, sans-serif; color: #333; }}
+              .wrapper {{ background: #f4f6fb; padding: 24px; }}
+              .card {{ max-width: 720px; margin: 0 auto; background: #fff; border-radius: 12px; box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08); overflow: hidden; }}
+              .header {{ background: linear-gradient(135deg, #1f4e79 0%, #1e83c2 100%); color: #fff; padding: 24px 32px; }}
+              .header h1 {{ margin: 0; font-size: 24px; }}
+              .meta {{ padding: 20px 32px; border-bottom: 1px solid #eef2f7; font-size: 14px; color: #475569; }}
+              .meta strong {{ display: block; color: #0f172a; font-size: 15px; margin-bottom: 4px; }}
+              .summary {{ padding: 24px 32px; }}
+              .summary h2 {{ font-size: 18px; margin-top: 0; color: #1f2937; }}
+              pre {{ background: #f8fafc; padding: 16px; border-radius: 8px; font-size: 13px; line-height: 1.6; white-space: pre-wrap; word-break: break-word; margin: 0; border: 1px solid #e2e8f0; }}
+              .footer {{ padding: 16px 32px 24px; font-size: 13px; color: #64748b; border-top: 1px solid #eef2f7; }}
+            </style>
+          </head>
+          <body>
+            <div class="wrapper">
+              <div class="card">
+                <div class="header">
+                  <h1>Configuration Completed</h1>
+                  <div>{tenant_upper}</div>
+                </div>
+                <div class="meta">
+                  <strong>Tenant</strong>
+                  {tenant_upper}
+                  <strong>Configuration</strong>
+                  {config_type}
+                </div>
+                <div class="summary">
+                  <h2>Summary</h2>
+                  <pre>{output_log}</pre>
+                </div>
+                <div class="footer">
+                  Please review the configuration inside the tenant to confirm everything looks correct.
+                </div>
+              </div>
+            </div>
+          </body>
+        </html>
+        """
 
-Configuration Details:
-{output_log}
+        msg.attach(MIMEText(plain_body, 'plain'))
+        msg.attach(MIMEText(html_body, 'html'))
 
-Please review the configuration to ensure everything is set up correctly.
-"""
-        
-        msg.attach(MIMEText(body, 'plain'))
-        
-        # Send email with better error handling
         server = smtplib.SMTP('smtp.gmail.com', 587)
-        server.set_debuglevel(0)  # Set to 1 for debugging
+        server.set_debuglevel(0)
         server.starttls()
         
-        # Try login - if it fails, it might need an app password
         try:
             server.login(sender_email, sender_password)
         except smtplib.SMTPAuthenticationError as auth_error:
-            logging.error(f"SMTP Authentication failed. Gmail may require an App Password. Error: {str(auth_error)}")
+            logging.error(f"SMTP Authentication failed: {auth_error}")
             if hasattr(st, 'error'):
-                st.error(f"Email authentication failed. Gmail may require an App Password instead of regular password.")
+                st.error("Email authentication failed. Please verify SMTP credentials.")
             server.quit()
             return False
         
-        text = msg.as_string()
-        server.sendmail(sender_email, receiver_email, text)
+        server.sendmail(sender_email, receiver_email, msg.as_string())
         server.quit()
         
         logging.info(f"Email sent successfully to {receiver_email}")
         return True
     except smtplib.SMTPException as smtp_error:
-        error_msg = f"SMTP Error: {str(smtp_error)}"
+        error_msg = f"SMTP Error: {smtp_error}"
         logging.error(error_msg)
         if hasattr(st, 'error'):
-            st.error(f"Email sending failed: {error_msg}")
+            st.error(error_msg)
         return False
     except Exception as e:
-        error_msg = f"Error sending email: {str(e)}"
+        error_msg = f"Unexpected error sending email: {e}"
         logging.error(error_msg)
         if hasattr(st, 'error'):
-            st.error(f"Email sending failed: {error_msg}")
+            st.error(error_msg)
         return False

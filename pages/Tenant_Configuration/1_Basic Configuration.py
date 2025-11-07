@@ -118,7 +118,7 @@ if st.session_state.allow_tenant:
                     "Configuring Portal Item/Holding"
                 ]
                 
-                configured_items = []
+                summary_entries = []
                 progress_bar = st.progress(0)
                 status_text = st.empty()
                 
@@ -129,8 +129,13 @@ if st.session_state.allow_tenant:
                     progress = (step + 1) / total_steps
                     progress_bar.progress(progress)
                     status_text.text(f"Step {step + 1}/{total_steps}: {config_steps[step]}")
-                    if item_name:
-                        configured_items.append(item_name)
+
+                def add_summary(status, message, detail=None):
+                    summary_entries.append({
+                        "status": status,
+                        "message": message,
+                        "detail": detail
+                    })
                 
                 # Steps 1-4: Create suppressed test record structure for Analytics
                 # This creates a dummy Instance → Holdings → Inventory Item
@@ -145,20 +150,18 @@ if st.session_state.allow_tenant:
                 time.sleep(2)
                 
                 if instance_id:
-                    # Verify instance actually exists by direct GET
                     if verify_instance_exists(instance_id):
-                        configured_items.append("Instance")
+                        add_summary('success', 'Instance created', instance_id)
                     else:
-                        # Try to find it via search as fallback
                         found_id = verify_instance_by_search()
                         if found_id:
-                            configured_items.append("Instance")
-                            instance_id = found_id  # Use the found ID for subsequent operations
+                            add_summary('success', 'Instance created (via search)', found_id)
+                            instance_id = found_id
                         else:
-                            configured_items.append("Instance (not found)")
-                            instance_id = None  # Set to None so holdings/item won't be created
+                            add_summary('error', 'Instance creation', 'Instance not found after creation attempt')
+                            instance_id = None
                 else:
-                    pass  # Continue silently
+                    add_summary('error', 'Instance creation', 'No instance ID returned')
                 time.sleep(1)
                 
                 # Step 2: Create Holdings (suppressed, linked to instance, location optional)
@@ -166,18 +169,24 @@ if st.session_state.allow_tenant:
                     update_progress(1, "Creating Holdings")
                     holdings_success = post_holdings(instance_id)
                     if holdings_success:
-                        configured_items.append("Holdings")
+                        add_summary('success', 'Holdings created')
+                    else:
+                        add_summary('warning', 'Holdings creation', 'Holdings API call failed')
                     time.sleep(1)
                     
                     # Step 3: Get Holdings ID
                     holding_id = get_holdings_id(instance_id)
+                    if not holding_id:
+                        add_summary('warning', 'Holdings verification', 'Holdings record not found after creation')
                     
                     # Step 4: Create Inventory Item (suppressed, location/material type optional)
                     if holding_id:
                         update_progress(2, "Creating Inventory Item")
                         item_success = post_inventory_item(holding_id)
                         if item_success:
-                            configured_items.append("Inventory Item")
+                            add_summary('success', 'Inventory item created')
+                        else:
+                            add_summary('warning', 'Inventory item creation', 'Item API call failed')
                     time.sleep(1)
                 else:
                     # If instance creation failed, skip holdings and item
@@ -246,40 +255,26 @@ if st.session_state.allow_tenant:
                 async_results = loop.run_until_complete(main())
                 for task_name, task_result in async_results:
                     if isinstance(task_result, Exception):
-                        configured_items.append(f"❌ {task_name} failed: {task_result}")
+                        add_summary('error', task_name, str(task_result))
                         continue
 
                     success = True
-                    detail = ""
+                    detail = None
 
                     if isinstance(task_result, tuple) and len(task_result) == 2:
                         success, detail = task_result
+                    elif task_result not in (None, True):
+                        detail = task_result
 
-                    prefix = "✅" if success else "⚠️"
-                    if isinstance(detail, dict):
-                        detail_text = json.dumps(detail)
-                    else:
-                        detail_text = str(detail) if detail else ""
-
-                    message = f"{prefix} {task_name}"
-                    if detail_text:
-                        message += f" — {detail_text}"
-                    configured_items.append(message)
-                configured_items.extend([
-                    "Price Notes", "Loan Types", "Default Job Profile", 
-                    "Alternative Title Types", "Departments", "AUC ID Identifier Type",
-                    "Locale & Currency", "Circulation Other Settings", "Loan History", 
-                    "Export Profile", "Profile Pictures"
-                ])
+                    add_summary('success' if success else 'warning', task_name, detail)
                 
                 # Step: Create Authority Source File (separate to handle errors)
                 update_progress(15, "Creating Authority Source File")
                 authority_file_success, authority_file_error = loop.run_until_complete(create_authority_source_file())
                 if authority_file_success:
-                    configured_items.append("Authority Source File")
+                    add_summary('success', 'Authority source file created')
                 else:
-                    # Add error message to configured items and output log
-                    configured_items.append(f"Authority Source File (ERROR: {authority_file_error})")
+                    add_summary('error', 'Authority source file', authority_file_error)
                 time.sleep(1)
                 
                 # Portal Integration Steps
@@ -290,40 +285,49 @@ if st.session_state.allow_tenant:
                 update_progress(21, "Configuring Portal Medad")
                 portal_medad_result = loop.run_until_complete(configure_portal_medad())
                 if portal_medad_result:
-                    configured_items.append("Portal Medad Configuration")
+                    add_summary('success', 'Portal Medad configuration applied')
+                else:
+                    add_summary('warning', 'Portal Medad configuration', 'Skipped or failed')
                 time.sleep(1)
                 
                 update_progress(22, "Configuring Portal MARC")
                 portal_marc_result = loop.run_until_complete(configure_portal_marc())
                 if portal_marc_result:
-                    configured_items.append("Portal MARC Configuration")
+                    add_summary('success', 'Portal MARC configuration applied')
+                else:
+                    add_summary('warning', 'Portal MARC configuration', 'Skipped or failed')
                 time.sleep(1)
                 
                 update_progress(23, "Configuring Portal Item/Holding")
                 portal_item_result = loop.run_until_complete(configure_portal_item_holding())
                 if portal_item_result:
-                    configured_items.append("Portal Item/Holding Configuration")
+                    add_summary('success', 'Portal item/holding configuration applied')
+                else:
+                    add_summary('warning', 'Portal item/holding configuration', 'Skipped or failed')
                 time.sleep(1)
                 
                 # Verification checks
                 help_status, help_detail = fetch_help_url_status()
                 if help_status:
-                    configured_items.append(f"Help URL configured: {help_detail}")
+                    add_summary('success', 'Help URL configured', help_detail)
                 else:
-                    configured_items.append(f"❌ Help URL not configured: {help_detail}")
+                    add_summary('warning', 'Help URL configuration', help_detail)
 
                 addr_status, addr_list = fetch_address_types_status()
                 if addr_status:
-                    configured_items.append(f"Address types present: {', '.join(addr_list) if addr_list else 'None'}")
+                    add_summary('success', 'Address types present', addr_list or 'None')
                 else:
-                    configured_items.append("❌ Unable to verify address types")
+                    add_summary('warning', 'Address types', 'Unable to verify address types')
 
                 location_status, location_details = fetch_dummy_location_status()
                 if location_status:
-                    configured_items.append("Dummy analytics location tree present")
+                    add_summary('success', 'Analytics location tree present')
                 else:
-                    details_line = "; ".join(f"{k}: {'✅' if v else '❌'}" for k, v in location_details.items()) if isinstance(location_details, dict) else str(location_details)
-                    configured_items.append(f"❌ Dummy location tree incomplete: {details_line}")
+                    if isinstance(location_details, dict):
+                        detail_text = ", ".join(f"{k}: {'✅' if v else '❌'}" for k, v in location_details.items())
+                    else:
+                        detail_text = location_details
+                    add_summary('warning', 'Analytics location tree incomplete', detail_text)
 
                 # Complete progress
                 progress_bar.progress(1.0)
@@ -333,22 +337,37 @@ if st.session_state.allow_tenant:
                 st.success("✅ Tenant is now Configured", icon="✅")
                 st.session_state['btn2'] = True
                 
-                # Display summary of configured items
-                output_log = "### Successfully Configured:\n"
-                error_section = ""
-                for item in configured_items:
-                    if "ERROR:" in item:
-                        # Extract error message
-                        error_section += f"❌ {item}\n"
-                        output_log += f"❌ {item}\n"
+                icon_map = {
+                    'success': '✅',
+                    'warning': '⚠️',
+                    'error': '❌',
+                    'info': 'ℹ️'
+                }
+
+                summary_lines = []
+                error_lines = []
+                for entry in summary_entries:
+                    icon = icon_map.get(entry['status'], '•')
+                    detail = entry.get('detail')
+                    if isinstance(detail, dict):
+                        detail_text = json.dumps(detail, indent=2)
+                    elif isinstance(detail, list):
+                        detail_text = ', '.join(map(str, detail))
                     else:
-                        output_log += f"✅ {item}\n"
-                
-                # Add error section if there are errors
-                if error_section:
-                    output_log += "\n### ⚠️ Errors/Warnings:\n"
-                    output_log += error_section
-                    output_log += "\n**Note:** Please contact the infrastructure team regarding the authority source file error.\n"
+                        detail_text = str(detail) if detail else ''
+
+                    line = f"{icon} {entry['message']}"
+                    if detail_text:
+                        line += f" — {detail_text}"
+                    summary_lines.append(line)
+                    if entry['status'] == 'error':
+                        error_lines.append(line)
+
+                output_log = "### Summary\n" + "\n".join(summary_lines)
+
+                if error_lines:
+                    output_log += "\n\n### ⚠️ Errors/Warnings\n" + "\n".join(error_lines)
+                    output_log += "\n\n**Note:** Please contact the infrastructure team regarding the errors above.**"
                 
                 st.session_state['basic_config_summary'] = output_log
                 with st.expander("📋 Configuration Summary", expanded=True):

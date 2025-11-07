@@ -1,11 +1,11 @@
 Basic Configration 
 
 
-Help Setting to be pointing on docs medad Arabic and and English
+
 Adding Dummy User with Address for Analytics
-Adding address Type (Home, Work)
 Reset password template to change it Arabic and English to be nicer 
 
-SIP updating the download with Mohammad Hussin sent by email and tested correctly based on the actvet last meeting 
+SIP updating the download with Mohammad Hussin sent by email and tested 
+correctly based on the actvet last meeting 
 
 
