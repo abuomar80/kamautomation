@@ -236,9 +236,16 @@ if st.session_state.allow_tenant:
                         ("Export profile", export_profile()),
                         ("Profile picture config", profile_picture()),
                     ]
+                    marc_templates_fn = getattr(extras, "ensure_marc_templates", None)
+                    if marc_templates_fn:
+                        task_defs.append(("MARC templates", marc_templates_fn()))
+                    else:
+                        add_summary('warning', 'MARC templates', 'Routine not available in this build')
                     ensure_address_types_fn = getattr(extras, "ensure_address_types", None)
                     if ensure_address_types_fn:
                         task_defs.append(("Address types", ensure_address_types_fn()))
+                    else:
+                        add_summary('warning', 'Address types', 'Routine not available in this build')
 
                     if not task_defs:
                         return []

@@ -53,6 +53,45 @@ def _build_dummy_location_identifiers(tenant_raw: str):
     }
 
 
+MARC_TEMPLATE_DEFINITIONS = [
+    {
+        "id": "cf747c1c-7f40-4056-b063-723ed8289ed8",
+        "name": "Default Bibliographic Template",
+        "description": "Automation - default bibliographic template",
+        "content": {
+            "leader": "00000nam a2200000 i 4500",
+            "fields": [
+                {"tag": "001", "value": ""},
+                {"tag": "005", "value": ""},
+                {"tag": "008", "value": ""},
+                {
+                    "tag": "100",
+                    "indicator1": "1",
+                    "indicator2": " ",
+                    "subfields": [{"code": "a", "value": ""}]
+                },
+                {
+                    "tag": "245",
+                    "indicator1": "1",
+                    "indicator2": "0",
+                    "subfields": [{"code": "a", "value": ""}]
+                },
+                {
+                    "tag": "264",
+                    "indicator1": " ",
+                    "indicator2": "1",
+                    "subfields": [
+                        {"code": "a", "value": ""},
+                        {"code": "b", "value": ""},
+                        {"code": "c", "value": ""}
+                    ]
+                }
+            ]
+        }
+    }
+]
+
+
 # Set logging to WARNING level to suppress debug output
 logging.basicConfig(level=logging.WARNING)
 
@@ -251,6 +290,120 @@ async def loan_type():
         return True, f"Created {loan_type_name}"
 
     return True, f"Existing {loan_type_name}"
+
+
+async def ensure_marc_templates():
+    tenant, okapi, token = _get_connection_details()
+    if not tenant:
+        return False, "Missing tenant info"
+
+    headers = {
+        "x-okapi-tenant": tenant,
+        "x-okapi-token": token,
+        "Content-Type": "application/json"
+    }
+
+    created_templates = []
+
+    # Fetch existing recordTemplates entry
+    templates_query = f"{okapi}/configurations/entries?query=(module==MARC_EDITOR and configName==recordTemplates)"
+    try:
+        resp = requests.get(templates_query, headers=headers)
+    except Exception as exc:
+        logging.error(f"Failed to fetch existing MARC templates: {exc}")
+        return False, f"Fetch failed: {exc}"
+
+    if resp.status_code != 200:
+        logging.error(f"Cannot fetch MARC templates: {resp.status_code} - {resp.text[:200]}")
+        return False, f"HTTP {resp.status_code}"
+
+    data = resp.json()
+    existing_entry = data.get('configs', [])
+    existing_templates = []
+    entry_id = None
+    if existing_entry:
+        entry = existing_entry[0]
+        entry_id = entry.get('id')
+        try:
+            existing_templates = json.loads(entry.get('value') or '[]')
+        except json.JSONDecodeError:
+            existing_templates = []
+
+    existing_ids = {template.get('id') for template in existing_templates}
+
+    updated_templates = existing_templates[:]
+
+    for template_def in MARC_TEMPLATE_DEFINITIONS:
+        template_id = template_def['id']
+        if template_id not in existing_ids:
+            updated_templates.append({
+                "id": template_id,
+                "name": template_def.get('name', template_id),
+                "description": template_def.get('description', '')
+            })
+            created_templates.append(template_def['name'])
+
+        # Ensure template content exists
+        content_query = (
+            f"{okapi}/configurations/entries?query=(module==MARC_EDITOR and "
+            f"configName==recordTemplatesContent and code=={template_id})"
+        )
+        try:
+            content_resp = requests.get(content_query, headers=headers)
+        except Exception as exc:
+            logging.error(f"Failed to check template content for {template_id}: {exc}")
+            return False, f"Template content fetch failed: {exc}"
+
+        payload = {
+            "module": "MARC_EDITOR",
+            "configName": "recordTemplatesContent",
+            "code": template_id,
+            "enabled": True,
+            "value": json.dumps(template_def['content'])
+        }
+
+        if content_resp.status_code == 200 and content_resp.json().get('configs'):
+            config_id = content_resp.json()['configs'][0]['id']
+            await async_request(
+                "PUT",
+                f"{okapi}/configurations/entries/{config_id}",
+                headers=headers,
+                data=json.dumps(payload)
+            )
+        else:
+            await async_request(
+                "POST",
+                f"{okapi}/configurations/entries",
+                headers=headers,
+                data=json.dumps(payload)
+            )
+
+    # Update recordTemplates entry
+    templates_payload = {
+        "module": "MARC_EDITOR",
+        "configName": "recordTemplates",
+        "enabled": True,
+        "value": json.dumps(updated_templates)
+    }
+
+    if entry_id:
+        await async_request(
+            "PUT",
+            f"{okapi}/configurations/entries/{entry_id}",
+            headers=headers,
+            data=json.dumps(templates_payload)
+        )
+    else:
+        await async_request(
+            "POST",
+            f"{okapi}/configurations/entries",
+            headers=headers,
+            data=json.dumps(templates_payload)
+        )
+
+    if created_templates:
+        return True, f"Templates added: {', '.join(created_templates)}"
+    return True, "Templates already present"
 
 
 async def default_job_profile():

@@ -1,11 +1,10 @@
 Basic Configration 
 
-
-
 Adding Dummy User with Address for Analytics
-Reset password template to change it Arabic and English to be nicer 
 
 SIP updating the download with Mohammad Hussin sent by email and tested 
-correctly based on the actvet last meeting 
+correctly based on the actvet last meeting   SIP JAR is now been downloaded from 
+G Drive Mohammed to communicate with team to include it on the MEdadadmin github 
+which the tenant read from this GitHub
 
 
