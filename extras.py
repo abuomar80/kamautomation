@@ -23899,14 +23899,14 @@ async def ensure_marc_templates():
 
         try:
             content_resp = requests.get(content_query, headers=headers, timeout=DEFAULT_TIMEOUT)
-            except Exception as exc:
-                logging.error(
-                    "Failed to fetch %s template content %s: %s",
-                    module,
-                    template_id,
-                    exc
-                )
-                return False, f"{module}:{template_id} content fetch failed: {exc}"
+        except Exception as exc:
+            logging.error(
+                "Failed to fetch %s template content %s: %s",
+                module,
+                template_id,
+                exc
+            )
+            return False, f"{module}:{template_id} content fetch failed: {exc}"
 
             if content_resp.status_code != 200:
                 logging.error(
