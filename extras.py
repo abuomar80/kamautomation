@@ -23558,9 +23558,6 @@ MARC_TEMPLATE_MODULE_CONFIG = {
         "content_config": "recordAuthorityTemplatesContent"
     },
 }
-        }
-    }
-]
 
 
 # Set logging to WARNING level to suppress debug output
