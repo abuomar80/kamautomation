@@ -23820,7 +23820,7 @@ async def ensure_marc_templates():
         )
 
         try:
-            list_resp = requests.get(list_query, headers=headers)
+            list_resp = requests.get(list_query, headers=headers, timeout=DEFAULT_TIMEOUT)
         except Exception as exc:
             logging.error("Failed to fetch %s templates list: %s", module, exc)
             return False, f"{module} list fetch failed: {exc}"
@@ -23919,8 +23919,8 @@ async def ensure_marc_templates():
                 f"configName=={content_config} and code=={template_id})"
             )
 
-            try:
-                content_resp = requests.get(content_query, headers=headers)
+        try:
+            content_resp = requests.get(content_query, headers=headers, timeout=DEFAULT_TIMEOUT)
             except Exception as exc:
                 logging.error(
                     "Failed to fetch %s template content %s: %s",
@@ -24867,7 +24867,7 @@ def fetch_marc_templates_status():
         )
 
         try:
-            resp = requests.get(list_query, headers=headers)
+            resp = requests.get(list_query, headers=headers, timeout=DEFAULT_TIMEOUT)
         except Exception as exc:
             logging.error("Failed to fetch %s template list status: %s", module, exc)
             status[module] = {"error": str(exc)}

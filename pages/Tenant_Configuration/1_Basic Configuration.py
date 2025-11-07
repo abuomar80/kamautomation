@@ -1,11 +1,13 @@
 import streamlit as st
 from legacy_session_state import legacy_session_state
 legacy_session_state()
+import importlib
 import extras
 import json
 import logging
 import requests
-import logging
+
+extras = importlib.reload(extras)
 
 from extras import (profile_picture,price_note,loan_type,default_job_profile,alt_types,
                     post_locale, addDepartments,circ_other,circ_loanhist,export_profile,configure_tenant,
@@ -149,6 +151,19 @@ if st.session_state.allow_tenant:
 
                     definitions = getattr(extras, "MARC_TEMPLATE_DEFINITIONS", [])
                     module_config = getattr(extras, "MARC_TEMPLATE_MODULE_CONFIG", {})
+
+                    if not definitions:
+                        raw_json = getattr(extras, "MARC_TEMPLATES_JSON", None)
+                        if raw_json:
+                            try:
+                                definitions = json.loads(raw_json)
+                            except json.JSONDecodeError:
+                                logging.error("Failed to parse MARC_TEMPLATES_JSON fallback")
+                                definitions = []
+
+                    if not module_config and hasattr(extras, "MARC_TEMPLATE_MODULE_CONFIG"):
+                        module_config = getattr(extras, "MARC_TEMPLATE_MODULE_CONFIG")
+
                     if not definitions or not module_config:
                         return False, "Template metadata unavailable"
 
