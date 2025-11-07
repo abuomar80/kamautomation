@@ -39,11 +39,11 @@ if st.session_state.allow_tenant:
     token = st.session_state.get('token')
 
     # Ensure keys exist for downstream functions that expect them
-    if 'tenant' not in st.session_state and tenant:
+    if (st.session_state.get('tenant') in [None, '']) and tenant:
         st.session_state['tenant'] = tenant
-    if 'okapi' not in st.session_state and okapi:
+    if (st.session_state.get('okapi') in [None, '']) and okapi:
         st.session_state['okapi'] = okapi
-    if 'token' not in st.session_state and token:
+    if (st.session_state.get('token') in [None, '']) and token:
         st.session_state['token'] = token
     
     # Check if values are truthy (not None, not empty string)
