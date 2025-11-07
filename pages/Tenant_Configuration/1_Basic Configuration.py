@@ -37,6 +37,14 @@ if st.session_state.allow_tenant:
     tenant = st.session_state.get('tenant') or st.session_state.get('tenant_name')
     okapi = st.session_state.get('okapi') or st.session_state.get('okapi_url')
     token = st.session_state.get('token')
+
+    # Ensure keys exist for downstream functions that expect them
+    if 'tenant' not in st.session_state and tenant:
+        st.session_state['tenant'] = tenant
+    if 'okapi' not in st.session_state and okapi:
+        st.session_state['okapi'] = okapi
+    if 'token' not in st.session_state and token:
+        st.session_state['token'] = token
     
     # Check if values are truthy (not None, not empty string)
     if not tenant or not okapi or not token:
