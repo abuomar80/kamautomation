@@ -4,6 +4,8 @@ legacy_session_state()
 import extras
 import json
 import logging
+import requests
+import logging
 
 from extras import (profile_picture,price_note,loan_type,default_job_profile,alt_types,
                     post_locale, addDepartments,circ_other,circ_loanhist,export_profile,configure_tenant,
@@ -137,6 +139,92 @@ if st.session_state.allow_tenant:
                         "message": message,
                         "detail": detail
                     })
+
+                def verify_marc_templates_inline():
+                    tenant = st.session_state.get('tenant') or st.session_state.get('tenant_name')
+                    okapi = st.session_state.get('okapi') or st.session_state.get('okapi_url')
+                    token = st.session_state.get('token')
+                    if not all([tenant, okapi, token]):
+                        return False, "Missing tenant info"
+
+                    definitions = getattr(extras, "MARC_TEMPLATE_DEFINITIONS", [])
+                    module_config = getattr(extras, "MARC_TEMPLATE_MODULE_CONFIG", {})
+                    if not definitions or not module_config:
+                        return False, "Template metadata unavailable"
+
+                    templates_by_module = {}
+                    for template in definitions:
+                        module = template.get("module")
+                        if not module:
+                            continue
+                        templates_by_module.setdefault(module, 0)
+                        templates_by_module[module] += 1
+
+                    headers = {
+                        "x-okapi-tenant": tenant,
+                        "x-okapi-token": token,
+                        "Content-Type": "application/json",
+                        "Accept": "application/json"
+                    }
+
+                    timeout = getattr(extras, "DEFAULT_TIMEOUT", 60)
+                    status = {}
+                    overall_success = True
+
+                    for module, module_cfg in module_config.items():
+                        list_query = (
+                            f"{okapi}/configurations/entries?query=(module=={module} and "
+                            f"configName=={module_cfg['list_config']})"
+                        )
+
+                        try:
+                            resp = requests.get(list_query, headers=headers, timeout=timeout)
+                        except Exception as exc:
+                            logging.error("Failed to fetch %s template list status: %s", module, exc)
+                            status[module] = {"error": str(exc)}
+                            overall_success = False
+                            continue
+
+                        if resp.status_code != 200:
+                            logging.error(
+                                "Failed to fetch %s template list: %s - %s",
+                                module,
+                                resp.status_code,
+                                resp.text[:200]
+                            )
+                            status[module] = {"error": f"HTTP {resp.status_code}"}
+                            overall_success = False
+                            continue
+
+                        data = resp.json()
+                        configs = data.get("configs") or []
+                        entry_count = len(configs)
+
+                        template_count = 0
+                        if configs:
+                            raw_value = configs[0].get("value") or "[]"
+                            try:
+                                parsed_list = json.loads(raw_value)
+                            except json.JSONDecodeError:
+                                logging.error("Template list JSON malformed for module %s", module)
+                                parsed_list = []
+                                overall_success = False
+                            template_count = len(parsed_list) if isinstance(parsed_list, list) else 0
+
+                        expected_count = templates_by_module.get(module, 0)
+                        module_status = {
+                            "configs": entry_count,
+                            "templates": template_count,
+                            "expected": expected_count
+                        }
+
+                        if template_count < expected_count:
+                            module_status["missing"] = expected_count - template_count
+                            overall_success = False
+
+                        status[module] = module_status
+
+                    return overall_success, status
                 
                 # Steps 1-4: Create suppressed test record structure for Analytics
                 # This creates a dummy Instance → Holdings → Inventory Item
@@ -377,7 +465,11 @@ if st.session_state.allow_tenant:
                             else:
                                 add_summary('warning', 'MARC templates verification', tpl_detail)
                 else:
-                    add_summary('warning', 'MARC templates verification', 'Routine not available in this build')
+                    tpl_ok, tpl_detail = verify_marc_templates_inline()
+                    if tpl_ok:
+                        add_summary('success', 'MARC templates verification', tpl_detail)
+                    else:
+                        add_summary('warning', 'MARC templates verification', tpl_detail)
 
                 # Complete progress
                 progress_bar.progress(1.0)
