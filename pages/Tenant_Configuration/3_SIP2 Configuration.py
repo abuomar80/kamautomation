@@ -215,7 +215,7 @@ if confirm_sip:
                     sip(okapi, tenant, st.session_state.get('token'), i, df)
                 sipconfig = st.success("Sip Configured!", icon="✅")
                 st.link_button('Download Java','https://download.oracle.com/java/21/latest/jdk-21_windows-x64_bin.exe')
-                st.link_button('Download Jar File', 'https://github.com/medadadmin/sip2-edge/releases/download/Sip2-Edge-Juniper/edge-sip2-fat.jar')
+                st.link_button('Download Jar File', 'https://drive.google.com/file/d/19Tf7vF7XqkA3h9NNbYaaChaknRzpqnMY/view?usp=drive_link')
                 st.download_button('Download sip2_tenants.conf', sip2tenant, file_name='sip2-tenants.conf')
                 st.download_button('Download sip2.conf', sip2conf, file_name='sip2.conf')
                 st.download_button('Download Sip2 Bat File', sipb, file_name='sip2.bat')
