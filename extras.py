@@ -23558,25 +23558,6 @@ MARC_TEMPLATE_MODULE_CONFIG = {
         "content_config": "recordAuthorityTemplatesContent"
     },
 }
-
-                },
-                {
-                    "tag": "245",
-                    "indicator1": "1",
-                    "indicator2": "0",
-                    "subfields": [{"code": "a", "value": ""}]
-                },
-                {
-                    "tag": "264",
-                    "indicator1": " ",
-                    "indicator2": "1",
-                    "subfields": [
-                        {"code": "a", "value": ""},
-                        {"code": "b", "value": ""},
-                        {"code": "c", "value": ""}
-                    ]
-                }
-            ]
         }
     }
 ]
