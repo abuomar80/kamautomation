@@ -3,6 +3,7 @@ from legacy_session_state import legacy_session_state
 legacy_session_state()
 import extras
 import json
+import logging
 
 from extras import (profile_picture,price_note,loan_type,default_job_profile,alt_types,
                     post_locale, addDepartments,circ_other,circ_loanhist,export_profile,configure_tenant,
@@ -11,7 +12,8 @@ from extras import (profile_picture,price_note,loan_type,default_job_profile,alt
                     post_overdue_fines_policy,post_lost_item_fees_policy,
                     configure_portal_medad,configure_portal_marc,configure_portal_item_holding,
                     send_completion_email,add_auc_identifier_type,create_authority_source_file,
-                    fetch_help_url_status,fetch_address_types_status,fetch_dummy_location_status)
+                    fetch_help_url_status,fetch_address_types_status,fetch_dummy_location_status,
+                    fetch_marc_templates_status)
 from Notices import send_notice
 import time
 import asyncio
@@ -144,22 +146,32 @@ if st.session_state.allow_tenant:
                 
                 # Step 1: Create Instance directly (suppressed, title "kamautomation")
                 update_progress(0, "Creating Instance")
-                instance_id = create_instance_for_analytics()
-                
+                instance_id = None
+                try:
+                    instance_id = create_instance_for_analytics()
+                except Exception as exc:
+                    logging.exception("Instance creation failed")
+                    add_summary('error', 'Instance creation', str(exc))
+
                 # Wait a moment for indexing
                 time.sleep(2)
-                
+
                 if instance_id:
-                    if verify_instance_exists(instance_id):
-                        add_summary('success', 'Instance created', instance_id)
-                    else:
-                        found_id = verify_instance_by_search()
-                        if found_id:
-                            add_summary('success', 'Instance created (via search)', found_id)
-                            instance_id = found_id
+                    try:
+                        if verify_instance_exists(instance_id):
+                            add_summary('success', 'Instance created', instance_id)
                         else:
-                            add_summary('error', 'Instance creation', 'Instance not found after creation attempt')
-                            instance_id = None
+                            found_id = verify_instance_by_search()
+                            if found_id:
+                                add_summary('success', 'Instance created (via search)', found_id)
+                                instance_id = found_id
+                            else:
+                                add_summary('error', 'Instance creation', 'Instance not found after creation attempt')
+                                instance_id = None
+                    except Exception as exc:
+                        logging.exception("Instance verification failed")
+                        add_summary('warning', 'Instance verification', str(exc))
+                        instance_id = None
                 else:
                     add_summary('error', 'Instance creation', 'No instance ID returned')
                 time.sleep(1)
@@ -167,26 +179,41 @@ if st.session_state.allow_tenant:
                 # Step 2: Create Holdings (suppressed, linked to instance, location optional)
                 if instance_id:
                     update_progress(1, "Creating Holdings")
-                    holdings_success = post_holdings(instance_id)
-                    if holdings_success:
-                        add_summary('success', 'Holdings created')
-                    else:
-                        add_summary('warning', 'Holdings creation', 'Holdings API call failed')
+                    try:
+                        holdings_success = post_holdings(instance_id)
+                        if holdings_success:
+                            add_summary('success', 'Holdings created')
+                        else:
+                            add_summary('warning', 'Holdings creation', 'Holdings API call failed')
+                    except Exception as exc:
+                        logging.exception("Holdings creation failed")
+                        add_summary('error', 'Holdings creation', str(exc))
+                        holdings_success = False
                     time.sleep(1)
-                    
+
                     # Step 3: Get Holdings ID
-                    holding_id = get_holdings_id(instance_id)
+                    holding_id = None
+                    try:
+                        holding_id = get_holdings_id(instance_id)
+                    except Exception as exc:
+                        logging.exception("Holdings verification failed")
+                        add_summary('error', 'Holdings verification', str(exc))
+
                     if not holding_id:
                         add_summary('warning', 'Holdings verification', 'Holdings record not found after creation')
-                    
+
                     # Step 4: Create Inventory Item (suppressed, location/material type optional)
                     if holding_id:
                         update_progress(2, "Creating Inventory Item")
-                        item_success = post_inventory_item(holding_id)
-                        if item_success:
-                            add_summary('success', 'Inventory item created')
-                        else:
-                            add_summary('warning', 'Inventory item creation', 'Item API call failed')
+                        try:
+                            item_success = post_inventory_item(holding_id)
+                            if item_success:
+                                add_summary('success', 'Inventory item created')
+                            else:
+                                add_summary('warning', 'Inventory item creation', 'Item API call failed')
+                        except Exception as exc:
+                            logging.exception("Inventory item creation failed")
+                            add_summary('error', 'Inventory item creation', str(exc))
                     time.sleep(1)
                 else:
                     # If instance creation failed, skip holdings and item
@@ -335,6 +362,19 @@ if st.session_state.allow_tenant:
                     else:
                         detail_text = location_details
                     add_summary('warning', 'Analytics location tree incomplete', detail_text)
+
+                try:
+                    templates_status = fetch_marc_templates_status()
+                except Exception as exc:
+                    logging.exception("MARC template verification failed")
+                    add_summary('warning', 'MARC templates verification', str(exc))
+                else:
+                    if templates_status:
+                        tpl_ok, tpl_detail = templates_status
+                        if tpl_ok:
+                            add_summary('success', 'MARC templates verification', tpl_detail)
+                        else:
+                            add_summary('warning', 'MARC templates verification', tpl_detail)
 
                 # Complete progress
                 progress_bar.progress(1.0)

@@ -24840,6 +24840,79 @@ def fetch_dummy_location_status():
     success = all(results.values()) if results else False
     return success, results
 
+
+def fetch_marc_templates_status():
+    tenant, okapi, token = _get_connection_details()
+    if not tenant:
+        return False, {"error": "Missing tenant info"}
+
+    headers = {"x-okapi-tenant": tenant, "x-okapi-token": token}
+    status = {}
+    overall_success = True
+
+    templates_by_module = {}
+    for template in MARC_TEMPLATE_DEFINITIONS:
+        module = template.get("module")
+        if not module:
+            continue
+        templates_by_module.setdefault(module, 0)
+        templates_by_module[module] += 1
+
+    for module, module_cfg in MARC_TEMPLATE_MODULE_CONFIG.items():
+        list_query = (
+            f"{okapi}/configurations/entries?query=(module=={module} and "
+            f"configName=={module_cfg['list_config']})"
+        )
+
+        try:
+            resp = requests.get(list_query, headers=headers)
+        except Exception as exc:
+            logging.error("Failed to fetch %s template list status: %s", module, exc)
+            status[module] = {"error": str(exc)}
+            overall_success = False
+            continue
+
+        if resp.status_code != 200:
+            logging.error(
+                "Failed to fetch %s template list: %s - %s",
+                module,
+                resp.status_code,
+                resp.text[:200]
+            )
+            status[module] = {"error": f"HTTP {resp.status_code}"}
+            overall_success = False
+            continue
+
+        data = resp.json()
+        configs = data.get("configs") or []
+        entry_count = len(configs)
+
+        template_count = 0
+        if configs:
+            raw_value = configs[0].get("value") or "[]"
+            try:
+                parsed_list = json.loads(raw_value)
+            except json.JSONDecodeError:
+                logging.error("Template list JSON malformed for module %s", module)
+                parsed_list = []
+                overall_success = False
+            template_count = len(parsed_list) if isinstance(parsed_list, list) else 0
+
+        expected_count = templates_by_module.get(module, 0)
+        module_status = {
+            "configs": entry_count,
+            "templates": template_count,
+            "expected": expected_count
+        }
+
+        if template_count < expected_count:
+            module_status["missing"] = expected_count - template_count
+            overall_success = False
+
+        status[module] = module_status
+
+    return overall_success, status
+
 def post_holdings(instance_id):
     """Create holdings record for analytics - location is optional"""
     url = f'{st.session_state.okapi}/holdings-storage/holdings'
