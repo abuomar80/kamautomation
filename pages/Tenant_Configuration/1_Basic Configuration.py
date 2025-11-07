@@ -12,8 +12,7 @@ from extras import (profile_picture,price_note,loan_type,default_job_profile,alt
                     post_overdue_fines_policy,post_lost_item_fees_policy,
                     configure_portal_medad,configure_portal_marc,configure_portal_item_holding,
                     send_completion_email,add_auc_identifier_type,create_authority_source_file,
-                    fetch_help_url_status,fetch_address_types_status,fetch_dummy_location_status,
-                    fetch_marc_templates_status)
+                    fetch_help_url_status,fetch_address_types_status,fetch_dummy_location_status)
 from Notices import send_notice
 import time
 import asyncio
@@ -363,18 +362,22 @@ if st.session_state.allow_tenant:
                         detail_text = location_details
                     add_summary('warning', 'Analytics location tree incomplete', detail_text)
 
-                try:
-                    templates_status = fetch_marc_templates_status()
-                except Exception as exc:
-                    logging.exception("MARC template verification failed")
-                    add_summary('warning', 'MARC templates verification', str(exc))
+                templates_status_fn = getattr(extras, "fetch_marc_templates_status", None)
+                if templates_status_fn:
+                    try:
+                        templates_status = templates_status_fn()
+                    except Exception as exc:
+                        logging.exception("MARC template verification failed")
+                        add_summary('warning', 'MARC templates verification', str(exc))
+                    else:
+                        if templates_status:
+                            tpl_ok, tpl_detail = templates_status
+                            if tpl_ok:
+                                add_summary('success', 'MARC templates verification', tpl_detail)
+                            else:
+                                add_summary('warning', 'MARC templates verification', tpl_detail)
                 else:
-                    if templates_status:
-                        tpl_ok, tpl_detail = templates_status
-                        if tpl_ok:
-                            add_summary('success', 'MARC templates verification', tpl_detail)
-                        else:
-                            add_summary('warning', 'MARC templates verification', tpl_detail)
+                    add_summary('warning', 'MARC templates verification', 'Routine not available in this build')
 
                 # Complete progress
                 progress_bar.progress(1.0)
