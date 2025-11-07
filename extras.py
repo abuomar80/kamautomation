@@ -554,15 +554,25 @@ def get_loan_type_id():
 
 def create_instance_for_analytics():
     """Create a suppressed instance directly for analytics (no MARC record needed)"""
-    url = f'{st.session_state.okapi}/inventory/instances'
+    tenant = st.session_state.get('tenant') or st.session_state.get('tenant_name')
+    okapi = st.session_state.get('okapi') or st.session_state.get('okapi_url')
+    token = st.session_state.get('token')
+
+    if not all([tenant, okapi, token]):
+        logging.error("Cannot create analytics instance: tenant connection details missing")
+        if hasattr(st, 'error'):
+            st.error("⚠️ Tenant connection information is missing. Please connect to a tenant first.")
+        return None
+
+    url = f'{okapi}/inventory/instances'
     headers = {
-        "x-okapi-tenant": f"{st.session_state.tenant}",
-        "x-okapi-token": f"{st.session_state.token}",
+        "x-okapi-tenant": tenant,
+        "x-okapi-token": token,
         "Content-Type": "application/json"
     }
     
     # Get default instance type ID (try to get first available)
-    instance_types_url = f'{st.session_state.okapi}/instance-types?limit=1000'
+    instance_types_url = f'{okapi}/instance-types?limit=1000'
     try:
         types_response = requests.get(instance_types_url, headers=headers)
         if types_response.status_code == 200:
