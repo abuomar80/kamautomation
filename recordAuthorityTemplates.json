@@ -1,0 +1,42 @@
+[
+  {
+    "id": "62c0a66a-1f8e-4b4d-bfd8-8b58f0831500",
+    "title": "AUTHROTY-RDA-2015 - AUC-TEMP-PERSON-PORTAL",
+    "description": "AUC-TEMP-PERSON-PORTAL"
+  },
+  {
+    "id": "0878d728-77af-4055-a61c-c21966e67ed4",
+    "title": "AUC Subjects (Topical/Gegraphical) - AUC-TEMP-GEOGRAPIC-PORTAL",
+    "description": "ÙÙØ¶ÙØ¹ (ÙÙØ¶ÙØ¹Ù/Ø¬ØºØ±Ø§ÙÙ)"
+  },
+  {
+    "id": "a7f24d98-556f-45c9-8f2d-8b51d4e236db",
+    "title": "AUC Subjects (Topical/Gegraphical) - AUC-TEMP-SUBJECT-PORTAL",
+    "description": "ÙÙØ¶ÙØ¹ (ÙÙØ¶ÙØ¹Ù/Ø¬ØºØ±Ø§ÙÙ)"
+  },
+  {
+    "id": "a37646cd-7a77-48d0-97ca-015b195374c2",
+    "title": "AUTHROTY-RDA-2015",
+    "description": "AUTHROTY-RDA-2015"
+  },
+  {
+    "id": "a549d6e0-d220-427f-a1fa-cf508d5c0963",
+    "title": "AUC Subjects (Topical/Gegraphical) - AUC_SUBJECT-RDA",
+    "description": "ÙÙØ¶ÙØ¹ (ÙÙØ¶ÙØ¹Ù)"
+  },
+  {
+    "id": "fe0fa486-30d0-447e-b314-8e13bed3f1d8",
+    "title": "AUC Subjects (Topical/Gegraphical) - AUC-GEOGRAPIC SUBJECT RDA",
+    "description": "ÙÙØ¶ÙØ¹ (Ø¬ØºØ±Ø§ÙÙ)"
+  },
+  {
+    "id": "4a90d859-dd13-4cb1-858e-19765772108c",
+    "title": "AUTHROTY-RDA-2015 - AUC-TEMP-CORPORATE-PORTAL",
+    "description": "AUC-TEMP-CORPORATE-PORTAL"
+  },
+  {
+    "id": "fb266708-43e3-4eb8-ad87-f29d2f6d47b9",
+    "title": "AUTHROTY-RDA-2015 - AUC-TEMP-MEETING -PORTAL",
+    "description": "AUC-TEMP-MEETING -PORTAL"
+  }
+]
