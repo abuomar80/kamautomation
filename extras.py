@@ -23585,6 +23585,8 @@ MARC_TEMPLATE_MODULE_CONFIG = {
 # Set logging to WARNING level to suppress debug output
 logging.basicConfig(level=logging.WARNING)
 
+DEFAULT_TIMEOUT = 60
+
 async def async_request(method, url, headers=None, data=None):
     if headers is None:
         headers = {}
@@ -24362,7 +24364,7 @@ def create_instance_for_analytics():
     # Get default instance type ID (try to get first available)
     instance_types_url = f'{okapi}/instance-types?limit=1000'
     try:
-        types_response = requests.get(instance_types_url, headers=headers)
+        types_response = requests.get(instance_types_url, headers=headers, timeout=DEFAULT_TIMEOUT)
         if types_response.status_code == 200:
             types_data = types_response.json()
             if types_data.get('instanceTypes') and len(types_data['instanceTypes']) > 0:
@@ -24395,7 +24397,7 @@ def create_instance_for_analytics():
     logging.info(f"POST URL: {url}")
     logging.info(f"Headers: {headers}")
     
-    response = requests.post(url, headers=headers, json=data)
+    response = requests.post(url, headers=headers, json=data, timeout=DEFAULT_TIMEOUT)
     
     # Log full response for debugging
     logging.info(f"Instance creation response: Status={response.status_code}")
@@ -24443,7 +24445,7 @@ def create_instance_for_analytics():
             
             for query_url in query_formats:
                 try:
-                    query_response = requests.get(query_url, headers=headers)
+                    query_response = requests.get(query_url, headers=headers, timeout=DEFAULT_TIMEOUT)
                     if query_response.status_code == 200:
                         query_data = query_response.json()
                         if query_data.get('instances') and len(query_data['instances']) > 0:
