@@ -2,13 +2,16 @@ import streamlit as st
 from legacy_session_state import legacy_session_state
 legacy_session_state()
 import extras
+import json
+
 from extras import (profile_picture,price_note,loan_type,default_job_profile,alt_types,
                     post_locale, addDepartments,circ_other,circ_loanhist,export_profile,configure_tenant,
                     create_instance_for_analytics,verify_instance_exists,verify_instance_by_search,
                     post_holdings,get_holdings_id,post_inventory_item,post_loan_period,post_patron_notice_policy,
                     post_overdue_fines_policy,post_lost_item_fees_policy,
                     configure_portal_medad,configure_portal_marc,configure_portal_item_holding,
-                    send_completion_email,add_auc_identifier_type,create_authority_source_file)
+                    send_completion_email,add_auc_identifier_type,create_authority_source_file,
+                    fetch_help_url_status,fetch_address_types_status,fetch_dummy_location_status)
 from Notices import send_notice
 import time
 import asyncio
@@ -30,6 +33,9 @@ if 'allow_tenant' not in st.session_state:
 
 st.subheader("Basic Tenant Configuration")
 st.caption("In order to start tenant configuration, kindly paste Medad ILS URL (ex: https://medad.ils.com) and click on start configuration button.")
+
+if 'basic_config_summary' not in st.session_state:
+    st.session_state['basic_config_summary'] = None
 
 if st.session_state.allow_tenant:
     # Validate that tenant connection info exists
@@ -80,6 +86,7 @@ if st.session_state.allow_tenant:
             st.session_state.start_btn = start
 
         if start:
+            st.session_state['basic_config_summary'] = None
             if st.session_state.start_btn is True:
                 tenant_name = st.session_state.get('tenant', 'Unknown')
                 
@@ -206,31 +213,58 @@ if st.session_state.allow_tenant:
                 # Steps 10-19: Async operations
                 update_progress(8, "Tenant Configuration")
                 async def main():
-                    tasks = [
-                        configure_tenant(),
-                        price_note(),
-                        loan_type(),
-                        default_job_profile(),
-                        alt_types(),
-                        addDepartments(),
-                        add_auc_identifier_type(),
-                        post_locale(st.session_state.Timezone, st.session_state.currency),
-                        circ_other(),
-                        circ_loanhist(),
-                        export_profile(),
-                        profile_picture()
+                    task_defs = [
+                        ("Tenant configuration", configure_tenant()),
+                        ("Price note type", price_note()),
+                        ("Loan type", loan_type()),
+                        ("Default job profile", default_job_profile()),
+                        ("Alternative title types", alt_types()),
+                        ("Departments", addDepartments()),
+                        ("AUC identifier type", add_auc_identifier_type()),
+                        ("Locale & currency", post_locale(st.session_state.Timezone, st.session_state.currency)),
+                        ("Circulation other settings", circ_other()),
+                        ("Circulation loan history", circ_loanhist()),
+                        ("Export profile", export_profile()),
+                        ("Profile picture config", profile_picture()),
                     ]
                     ensure_address_types_fn = getattr(extras, "ensure_address_types", None)
                     if ensure_address_types_fn:
-                        tasks.append(ensure_address_types_fn())
-                    await asyncio.gather(*tasks)
+                        task_defs.append(("Address types", ensure_address_types_fn()))
+
+                    if not task_defs:
+                        return []
+
+                    names, coroutines = zip(*task_defs)
+                    results = await asyncio.gather(*coroutines, return_exceptions=True)
+                    return list(zip(names, results))
                 
                 # Running the asyncio event loop
                 loop = asyncio.new_event_loop()
                 asyncio.set_event_loop(loop)
                 
                 # Update progress for async tasks
-                loop.run_until_complete(main())
+                async_results = loop.run_until_complete(main())
+                for task_name, task_result in async_results:
+                    if isinstance(task_result, Exception):
+                        configured_items.append(f"❌ {task_name} failed: {task_result}")
+                        continue
+
+                    success = True
+                    detail = ""
+
+                    if isinstance(task_result, tuple) and len(task_result) == 2:
+                        success, detail = task_result
+
+                    prefix = "✅" if success else "⚠️"
+                    if isinstance(detail, dict):
+                        detail_text = json.dumps(detail)
+                    else:
+                        detail_text = str(detail) if detail else ""
+
+                    message = f"{prefix} {task_name}"
+                    if detail_text:
+                        message += f" — {detail_text}"
+                    configured_items.append(message)
                 configured_items.extend([
                     "Price Notes", "Loan Types", "Default Job Profile", 
                     "Alternative Title Types", "Departments", "AUC ID Identifier Type",
@@ -271,6 +305,26 @@ if st.session_state.allow_tenant:
                     configured_items.append("Portal Item/Holding Configuration")
                 time.sleep(1)
                 
+                # Verification checks
+                help_status, help_detail = fetch_help_url_status()
+                if help_status:
+                    configured_items.append(f"Help URL configured: {help_detail}")
+                else:
+                    configured_items.append(f"❌ Help URL not configured: {help_detail}")
+
+                addr_status, addr_list = fetch_address_types_status()
+                if addr_status:
+                    configured_items.append(f"Address types present: {', '.join(addr_list) if addr_list else 'None'}")
+                else:
+                    configured_items.append("❌ Unable to verify address types")
+
+                location_status, location_details = fetch_dummy_location_status()
+                if location_status:
+                    configured_items.append("Dummy analytics location tree present")
+                else:
+                    details_line = "; ".join(f"{k}: {'✅' if v else '❌'}" for k, v in location_details.items()) if isinstance(location_details, dict) else str(location_details)
+                    configured_items.append(f"❌ Dummy location tree incomplete: {details_line}")
+
                 # Complete progress
                 progress_bar.progress(1.0)
                 status_text.text("Configuration Complete!")
@@ -296,6 +350,7 @@ if st.session_state.allow_tenant:
                     output_log += error_section
                     output_log += "\n**Note:** Please contact the infrastructure team regarding the authority source file error.\n"
                 
+                st.session_state['basic_config_summary'] = output_log
                 with st.expander("📋 Configuration Summary", expanded=True):
                     st.markdown(output_log)
                 
@@ -309,3 +364,9 @@ if st.session_state.allow_tenant:
 
 else:
     st.warning("Please Connect to Tenant First.")
+
+if st.session_state.allow_tenant:
+    previous_summary = st.session_state.get('basic_config_summary')
+    if previous_summary:
+        with st.expander("📋 Last Configuration Summary", expanded=False):
+            st.markdown(previous_summary)

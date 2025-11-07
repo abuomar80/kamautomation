@@ -12,16 +12,45 @@ legacy_session_state()
 if 'Allow_rest' not in st.session_state:
     st.session_state['Allow_rest'] = False
 
-# Initialize tenant-related session state variables if not set (for use in functions)
-# Check both widget-bound keys and copied keys (from form submission)
-if 'tenant' not in st.session_state or not st.session_state.get('tenant'):
-    st.session_state['tenant'] = st.session_state.get('tenant_name', '')
-if 'okapi' not in st.session_state or not st.session_state.get('okapi'):
-    st.session_state['okapi'] = st.session_state.get('okapi_url', '')
-if 'token' not in st.session_state:
-    st.session_state['token'] = st.session_state.get('token')
-if 'username_tenant' not in st.session_state or not st.session_state.get('username_tenant'):
-    st.session_state['username_tenant'] = st.session_state.get('tenant_username', '')
+
+def _get_connection_details(require_token: bool = True):
+    tenant = st.session_state.get('tenant') or st.session_state.get('tenant_name') or ''
+    okapi = st.session_state.get('okapi') or st.session_state.get('okapi_url') or ''
+    token = st.session_state.get('token') if require_token else (st.session_state.get('token') or '')
+
+    if require_token and not all([tenant, okapi, token]):
+        logging.error("Missing tenant connection details (tenant/okapi/token)")
+        if hasattr(st, 'error'):
+            st.error("⚠️ Tenant connection information is missing. Please connect to a tenant first.")
+        return None, None, None
+
+    return tenant, okapi, token
+
+
+def _build_dummy_location_identifiers(tenant_raw: str):
+    base_name = re.sub(r'[^A-Za-z0-9]+', '_', tenant_raw or '').strip('_') or 'tenant'
+    base_name_lower = base_name.lower()
+    base_name_upper = base_name.upper()
+
+    def name_with_suffix(suffix: str) -> str:
+        return f"{base_name_lower}__{suffix}"
+
+    def code_with_suffix(suffix: str) -> str:
+        code_value = f"{base_name_upper}__{suffix}"
+        return code_value[:50]
+
+    return {
+        "institution_name": name_with_suffix("institution"),
+        "institution_code": code_with_suffix("INSTITUTION"),
+        "campus_name": name_with_suffix("campus"),
+        "campus_code": code_with_suffix("CAMPUS"),
+        "library_name": name_with_suffix("library"),
+        "library_code": code_with_suffix("LIBRARY"),
+        "location_name": name_with_suffix("location"),
+        "location_code": code_with_suffix("LOCATION"),
+        "service_point_name": name_with_suffix("service_point"),
+        "service_point_code": code_with_suffix("SP")
+    }
 
 
 # Set logging to WARNING level to suppress debug output
@@ -42,9 +71,13 @@ async def async_request(method, url, headers=None, data=None):
 
 
 async def configure_tenant():
-    Config_url = f"{st.session_state.okapi}/configurations/entries?limit=1000"
-    post_url = f"{st.session_state.okapi}/configurations/entries"
-    headers = {"x-okapi-tenant": f"{st.session_state.tenant}", "x-okapi-token": f"{st.session_state.token}"}
+    tenant, okapi, token = _get_connection_details()
+    if not tenant:
+        return False, "Missing tenant info"
+
+    Config_url = f"{okapi}/configurations/entries?limit=1000"
+    post_url = f"{okapi}/configurations/entries"
+    headers = {"x-okapi-tenant": tenant, "x-okapi-token": token}
     response = await async_request("GET", Config_url, headers=headers)
     # Configuration response - no debug output needed
 
@@ -114,11 +147,18 @@ async def configure_tenant():
     if not help_exists:
         tasks.append(async_request("POST", post_url, headers=headers, data=json.dumps(help_payload)))
 
-    await asyncio.gather(*tasks)
+    if tasks:
+        await asyncio.gather(*tasks)
+
+    return True, "Tenant configuration updated"
 
 async def price_note():
-    item_note_types_url = f"{st.session_state.okapi}/item-note-types"
-    headers = {"x-okapi-tenant": f"{st.session_state.tenant}", "x-okapi-token": f"{st.session_state.token}"}
+    tenant, okapi, token = _get_connection_details()
+    if not tenant:
+        return False, "Missing tenant info"
+
+    item_note_types_url = f"{okapi}/item-note-types"
+    headers = {"x-okapi-tenant": tenant, "x-okapi-token": token}
 
     # Fetch existing item note types
     existing_item_note_types_response = await async_request("GET", item_note_types_url, headers=headers)
@@ -134,26 +174,34 @@ async def price_note():
     if item_note_name.lower() not in existing_item_note_types:
         data = {"source": "automation", "name": item_note_name}
         await async_request("POST", item_note_types_url, headers=headers, data=json.dumps(data))
-    else:
-        # Item note type already exists - no output needed
-        pass
+
+    return True, "Price note type ensured"
 
 
 async def ensure_address_types():
     """Ensure required patron address types are present (Home, Work)."""
-    url = f"{st.session_state.okapi}/addresstypes"
-    headers = {"x-okapi-tenant": f"{st.session_state.tenant}", "x-okapi-token": f"{st.session_state.token}"}
+    tenant, okapi, token = _get_connection_details()
+    if not tenant:
+        return False, "Missing tenant info"
+
+    url = f"{okapi}/addresstypes"
+    headers = {"x-okapi-tenant": tenant, "x-okapi-token": token}
 
     try:
         existing_response = await async_request("GET", url, headers=headers)
     except Exception as exc:
         logging.error(f"Failed to fetch address types: {exc}")
-        return
+        return False, f"Error fetching address types: {exc}"
 
     existing_types = set()
     if isinstance(existing_response, dict):
         raw_types = existing_response.get("addressTypes") or existing_response.get("addresstypes") or []
         for entry in raw_types:
+            name = entry.get("addressType") or entry.get("name")
+            if name:
+                existing_types.add(name.lower())
+    elif isinstance(existing_response, list):
+        for entry in existing_response:
             name = entry.get("addressType") or entry.get("name")
             if name:
                 existing_types.add(name.lower())
@@ -175,11 +223,17 @@ async def ensure_address_types():
             await asyncio.gather(*create_tasks)
         except Exception as exc:
             logging.error(f"Failed to create address types: {exc}")
+            return False, f"Failed creating address types: {exc}"
 
+    return True, "Address types ensured"
 
 async def loan_type():
-    loan_types_url = f"{st.session_state.okapi}/loan-types"
-    headers = {"x-okapi-tenant": f"{st.session_state.tenant}", "x-okapi-token": f"{st.session_state.token}"}
+    tenant, okapi, token = _get_connection_details()
+    if not tenant:
+        return False
+
+    loan_types_url = f"{okapi}/loan-types"
+    headers = {"x-okapi-tenant": tenant, "x-okapi-token": token}
 
     # Fetch existing loan types
     existing_loan_types_response = await async_request("GET", loan_types_url, headers=headers)
@@ -746,14 +800,8 @@ def verify_instance_by_search():
 
 def create_dummy_suppressed_location():
     """Create a dummy suppressed location with full tree structure (Institution, Campus, Library, Location) for analytics"""
-    tenant_raw = st.session_state.get('tenant') or st.session_state.get('tenant_name', '')
-    okapi = st.session_state.get('okapi') or st.session_state.get('okapi_url', '')
-    token = st.session_state.get('token')
-
-    if not tenant_raw or not okapi or not token:
-        logging.error("Cannot create dummy location because tenant or Okapi information is missing")
-        if hasattr(st, 'error'):
-            st.error("⚠️ Tenant connection information is missing. Please connect to a tenant and try again.")
+    tenant_raw, okapi, token = _get_connection_details()
+    if not tenant_raw:
         return None
 
     headers = {
@@ -762,28 +810,17 @@ def create_dummy_suppressed_location():
         "Content-Type": "application/json"
     }
 
-    # Build consistent names/codes using tenant prefix
-    base_name = re.sub(r'[^A-Za-z0-9]+', '_', tenant_raw).strip('_') or 'tenant'
-    base_name_lower = base_name.lower()
-    base_name_upper = base_name.upper()
-
-    def name_with_suffix(suffix: str) -> str:
-        return f"{base_name_lower}__{suffix}"
-
-    def code_with_suffix(suffix: str) -> str:
-        code_value = f"{base_name_upper}__{suffix}"
-        return code_value[:50]
-
-    dummy_institution_name = name_with_suffix("institution")
-    dummy_institution_code = code_with_suffix("INSTITUTION")
-    dummy_campus_name = name_with_suffix("campus")
-    dummy_campus_code = code_with_suffix("CAMPUS")
-    dummy_library_name = name_with_suffix("library")
-    dummy_library_code = code_with_suffix("LIBRARY")
-    dummy_location_name = name_with_suffix("location")
-    dummy_location_code = code_with_suffix("LOCATION")
-    dummy_service_point_name = name_with_suffix("service_point")
-    dummy_service_point_code = code_with_suffix("SP")
+    identifiers = _build_dummy_location_identifiers(tenant_raw)
+    dummy_institution_name = identifiers["institution_name"]
+    dummy_institution_code = identifiers["institution_code"]
+    dummy_campus_name = identifiers["campus_name"]
+    dummy_campus_code = identifiers["campus_code"]
+    dummy_library_name = identifiers["library_name"]
+    dummy_library_code = identifiers["library_code"]
+    dummy_location_name = identifiers["location_name"]
+    dummy_location_code = identifiers["location_code"]
+    dummy_service_point_name = identifiers["service_point_name"]
+    dummy_service_point_code = identifiers["service_point_code"]
 
     try:
         # Step 1: Check if location already exists
@@ -962,6 +999,112 @@ def create_dummy_suppressed_location():
         logging.error(f"Error creating dummy location: {e}")
         return None
 
+
+def fetch_help_url_status():
+    tenant, okapi, token = _get_connection_details()
+    if not tenant:
+        return False, "Missing tenant info"
+
+    headers = {"x-okapi-tenant": tenant, "x-okapi-token": token}
+    url = f"{okapi}/configurations/entries?query=(module==MISCELLANEOUS and configName==HELP_URL)"
+
+    try:
+        response = requests.get(url, headers=headers)
+    except Exception as exc:
+        logging.error(f"Failed to fetch help URL config: {exc}")
+        return False, f"Request failed: {exc}"
+
+    if response.status_code != 200:
+        logging.error(f"Help URL fetch failed: {response.status_code} - {response.text[:200]}")
+        return False, f"HTTP {response.status_code}: {response.text[:200]}"
+
+    data = response.json()
+    configs = data.get('configs', [])
+    if not configs:
+        return False, "Not configured"
+
+    raw_value = configs[0].get('value') or '{}'
+    try:
+        parsed_value = json.loads(raw_value)
+    except json.JSONDecodeError:
+        logging.error("Help URL value is not valid JSON")
+        return False, "Invalid stored value"
+
+    return True, parsed_value
+
+
+def fetch_address_types_status():
+    tenant, okapi, token = _get_connection_details()
+    if not tenant:
+        return False, []
+
+    headers = {"x-okapi-tenant": tenant, "x-okapi-token": token}
+    url = f"{okapi}/addresstypes"
+
+    try:
+        response = requests.get(url, headers=headers)
+    except Exception as exc:
+        logging.error(f"Failed to fetch address types: {exc}")
+        return False, []
+
+    if response.status_code != 200:
+        logging.error(f"Address types fetch failed: {response.status_code} - {response.text[:200]}")
+        return False, []
+
+    data = response.json()
+    if isinstance(data, dict):
+        entries = data.get('addressTypes') or data.get('addresstypes') or []
+    elif isinstance(data, list):
+        entries = data
+    else:
+        entries = []
+
+    names = []
+    for entry in entries:
+        name = entry.get('addressType') or entry.get('name')
+        if name:
+            names.append(name)
+
+    return True, names
+
+
+def fetch_dummy_location_status():
+    tenant, okapi, token = _get_connection_details()
+    if not tenant:
+        return False, {"error": "Missing tenant info"}
+
+    headers = {"x-okapi-tenant": tenant, "x-okapi-token": token}
+    identifiers = _build_dummy_location_identifiers(tenant)
+
+    results = {}
+
+    def _exists(endpoint: str, key: str, label: str, code_key: str, name_key: str):
+        try:
+            resp = requests.get(f"{okapi}/{endpoint}", headers=headers)
+            if resp.status_code != 200:
+                logging.warning(f"Fetch {label} failed: {resp.status_code}")
+                results[label] = False
+                return
+            data = resp.json()
+            items = data.get(key) if isinstance(data, dict) else None
+            if not items:
+                results[label] = False
+                return
+            expected_values = {identifiers.get(code_key), identifiers.get(name_key)}
+            match = next((item for item in items if (item.get('code') or item.get('name')) in expected_values), None)
+            results[label] = match is not None
+        except Exception as exc:
+            logging.error(f"Error fetching {label}: {exc}")
+            results[label] = False
+
+    _exists(f"service-points?query=code=={identifiers['service_point_code']}", 'servicepoints', 'ServicePoint', 'service_point_code', 'service_point_name')
+    _exists(f"location-units/institutions?query=code=={identifiers['institution_code']}", 'locinsts', 'Institution', 'institution_code', 'institution_name')
+    _exists(f"location-units/campuses?query=code=={identifiers['campus_code']}", 'loccamps', 'Campus', 'campus_code', 'campus_name')
+    _exists(f"location-units/libraries?query=code=={identifiers['library_code']}", 'loclibs', 'Library', 'library_code', 'library_name')
+    _exists(f"locations?query=code=={identifiers['location_code']}", 'locations', 'Location', 'location_code', 'location_name')
+
+    success = all(results.values()) if results else False
+    return success, results
 
 def post_holdings(instance_id):
     """Create holdings record for analytics - location is optional"""
