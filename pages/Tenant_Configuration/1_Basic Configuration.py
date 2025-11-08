@@ -6,10 +6,12 @@ import extras
 import json
 import logging
 import requests
+from collections import Counter, defaultdict
+from datetime import datetime, timezone, timedelta
 
 extras = importlib.reload(extras)
 
-from extras import (profile_picture,price_note,loan_type,default_job_profile,alt_types,
+from extras import (price_note,loan_type,default_job_profile,alt_types,
                     post_locale, addDepartments,circ_other,circ_loanhist,export_profile,configure_tenant,
                     create_instance_for_analytics,verify_instance_exists,verify_instance_by_search,
                     post_holdings,get_holdings_id,post_inventory_item,post_loan_period,post_patron_notice_policy,
@@ -117,13 +119,13 @@ if st.session_state.allow_tenant:
                     "Configuring Circulation Other Settings",
                     "Configuring Loan History",
                     "Setting Up Export Profile",
-                    "Configuring Profile Pictures",
                     "Configuring Portal Medad",
                     "Configuring Portal MARC",
                     "Configuring Portal Item/Holding"
                 ]
                 
                 summary_entries = []
+                start_time = datetime.now(timezone.utc)
                 progress_bar = st.progress(0)
                 status_text = st.empty()
                 
@@ -367,7 +369,6 @@ if st.session_state.allow_tenant:
                         ("Circulation other settings", circ_other()),
                         ("Circulation loan history", circ_loanhist()),
                         ("Export profile", export_profile()),
-                        ("Profile picture config", profile_picture()),
                     ]
                     marc_templates_fn = getattr(extras, "ensure_marc_templates", None)
                     if marc_templates_fn:
@@ -418,11 +419,7 @@ if st.session_state.allow_tenant:
                 time.sleep(1)
                 
                 # Portal Integration Steps
-                update_progress(20, "Configuring Profile Pictures")
-                # Profile Pictures is already executed in async tasks, just updating progress
-                time.sleep(1)
-                
-                update_progress(21, "Configuring Portal Medad")
+                update_progress(20, "Configuring Portal Medad")
                 portal_medad_result = loop.run_until_complete(configure_portal_medad())
                 if portal_medad_result:
                     add_summary('success', 'Portal Medad configuration applied')
@@ -430,7 +427,7 @@ if st.session_state.allow_tenant:
                     add_summary('warning', 'Portal Medad configuration', 'Skipped or failed')
                 time.sleep(1)
                 
-                update_progress(22, "Configuring Portal MARC")
+                update_progress(21, "Configuring Portal MARC")
                 portal_marc_result = loop.run_until_complete(configure_portal_marc())
                 if portal_marc_result:
                     add_summary('success', 'Portal MARC configuration applied')
@@ -438,7 +435,7 @@ if st.session_state.allow_tenant:
                     add_summary('warning', 'Portal MARC configuration', 'Skipped or failed')
                 time.sleep(1)
                 
-                update_progress(23, "Configuring Portal Item/Holding")
+                update_progress(22, "Configuring Portal Item/Holding")
                 portal_item_result = loop.run_until_complete(configure_portal_item_holding())
                 if portal_item_result:
                     add_summary('success', 'Portal item/holding configuration applied')
@@ -491,6 +488,9 @@ if st.session_state.allow_tenant:
                         add_summary('warning', 'MARC templates verification', tpl_detail)
 
                 # Complete progress
+                end_time = datetime.now(timezone.utc)
+                duration = end_time - start_time
+                duration_str = str(timedelta(seconds=int(duration.total_seconds())))
                 progress_bar.progress(1.0)
                 status_text.text("Configuration Complete!")
                 
@@ -504,31 +504,47 @@ if st.session_state.allow_tenant:
                     'error': '❌',
                     'info': 'ℹ️'
                 }
+                status_order = ['success', 'warning', 'error', 'info']
+                counts = Counter(entry['status'] for entry in summary_entries)
+                grouped_entries = defaultdict(list)
+                for entry in summary_entries:
+                    grouped_entries[entry['status']].append(entry)
+
+                def format_detail(detail):
+                    if detail is None or detail == "":
+                        return ""
+                    if isinstance(detail, dict):
+                        return json.dumps(detail, indent=2)
+                    if isinstance(detail, list):
+                        return ', '.join(map(str, detail))
+                    return str(detail)
 
                 summary_lines = []
-                error_lines = []
-                for entry in summary_entries:
-                    icon = icon_map.get(entry['status'], '•')
-                    detail = entry.get('detail')
-                    if isinstance(detail, dict):
-                        detail_text = json.dumps(detail, indent=2)
-                    elif isinstance(detail, list):
-                        detail_text = ', '.join(map(str, detail))
-                    else:
-                        detail_text = str(detail) if detail else ''
+                summary_lines.append(f"Tenant: **{tenant_name}**")
+                summary_lines.append(f"Run started: {start_time.strftime('%Y-%m-%d %H:%M:%S %Z') or start_time.isoformat()}")
+                summary_lines.append(f"Run completed: {end_time.strftime('%Y-%m-%d %H:%M:%S %Z') or end_time.isoformat()}")
+                summary_lines.append(f"Duration: {duration_str}")
+                summary_lines.append("")
+                summary_lines.append("### Status Overview")
+                for status in status_order:
+                    if counts.get(status):
+                        summary_lines.append(f"- {icon_map.get(status, '•')} **{status.title()}**: {counts[status]}")
+                summary_lines.append("")
+                summary_lines.append("### Details")
+                for status in status_order:
+                    entries_for_status = grouped_entries.get(status) or []
+                    if not entries_for_status:
+                        continue
+                    summary_lines.append(f"#### {icon_map.get(status, '•')} {status.title()}")
+                    for entry in entries_for_status:
+                        detail_text = format_detail(entry.get('detail'))
+                        line = f"- {entry['message']}"
+                        if detail_text:
+                            detail_block = detail_text.replace('\n', '\n  ')
+                            line += f" — {detail_block}"
+                        summary_lines.append(line)
 
-                    line = f"{icon} {entry['message']}"
-                    if detail_text:
-                        line += f" — {detail_text}"
-                    summary_lines.append(line)
-                    if entry['status'] == 'error':
-                        error_lines.append(line)
-
-                output_log = "### Summary\n" + "\n".join(summary_lines)
-
-                if error_lines:
-                    output_log += "\n\n### ⚠️ Errors/Warnings\n" + "\n".join(error_lines)
-                    output_log += "\n\n**Note:** Please contact the infrastructure team regarding the errors above.**"
+                output_log = "\n".join(summary_lines)
                 
                 st.session_state['basic_config_summary'] = output_log
                 with st.expander("📋 Configuration Summary", expanded=True):
@@ -536,7 +552,18 @@ if st.session_state.allow_tenant:
                 
                 # Send email notification
                 st.info("📧 Sending email notification...")
-                email_sent = send_completion_email("Basic", output_log, tenant_name)
+                summary_payload = {
+                    "entries": summary_entries,
+                    "counts": dict(counts),
+                    "meta": {
+                        "tenant": tenant_name,
+                        "config_type": "Basic",
+                        "start_time": start_time.isoformat(),
+                        "end_time": end_time.isoformat(),
+                        "duration": duration_str,
+                    }
+                }
+                email_sent = send_completion_email("Basic", output_log, tenant_name, summary_payload)
                 if email_sent:
                     st.success("✅ Email notification sent successfully!")
                 else:

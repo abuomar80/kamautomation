@@ -25414,11 +25414,13 @@ async def configure_portal_medad():
         return False
 
 
-def send_completion_email(config_type, output_log, tenant_name):
+def send_completion_email(config_type, output_log, tenant_name, summary=None):
     """Send email notification when configuration is completed"""
     import smtplib
     from email.mime.text import MIMEText
     from email.mime.multipart import MIMEMultipart
+    from datetime import datetime
+    from collections import defaultdict
     
     try:
         sender_email = "ilsconfigration@gmail.com"
@@ -25432,10 +25434,90 @@ def send_completion_email(config_type, output_log, tenant_name):
         msg['To'] = receiver_email
         msg['Subject'] = subject
         
-        plain_body = f"Tenant: {tenant_upper}\n\n{config_type} configuration has completed.\n\nDetails:\n{output_log}\n\nPlease review the tenant to confirm everything is set up correctly."
+        summary = summary or {}
+        entries = summary.get("entries") or []
+        counts = summary.get("counts") or {}
+        meta = summary.get("meta") or {}
+        status_order = ['success', 'warning', 'error', 'info']
+        status_labels = {
+            'success': 'Success',
+            'warning': 'Warnings',
+            'error': 'Errors',
+            'info': 'Info'
+        }
+        icon_map = {
+            'success': '✅',
+            'warning': '⚠️',
+            'error': '❌',
+            'info': 'ℹ️'
+        }
+
+        def format_detail_plain(detail):
+            if detail is None or detail == "":
+                return ""
+            if isinstance(detail, dict):
+                return json.dumps(detail, indent=2)
+            if isinstance(detail, list):
+                return ', '.join(map(str, detail))
+            return str(detail)
+
+        meta_lines = [
+            f"Tenant: {tenant_upper}",
+            f"Configuration: {config_type}",
+        ]
+        if meta.get("start_time"):
+            meta_lines.append(f"Started: {meta['start_time']}")
+        if meta.get("end_time"):
+            meta_lines.append(f"Completed: {meta['end_time']}")
+        if meta.get("duration"):
+            meta_lines.append(f"Duration: {meta['duration']}")
+
+        counts_lines = []
+        for status in status_order:
+            if counts.get(status):
+                counts_lines.append(f"{icon_map.get(status, '•')} {status_labels.get(status, status.title())}: {counts[status]}")
+
+        details_lines = []
+        for entry in entries:
+            detail_text = format_detail_plain(entry.get('detail'))
+            line = f"{icon_map.get(entry.get('status'), '•')} {entry.get('message')}"
+            if detail_text:
+                line += f" — {detail_text}"
+            details_lines.append(line)
+
+        plain_sections = [
+            "\n".join(meta_lines),
+        ]
+        if counts_lines:
+            plain_sections.append("Status Overview:\n" + "\n".join(f"- {line}" for line in counts_lines))
+        if details_lines:
+            plain_sections.append("Details:\n" + "\n".join(f"- {line}" for line in details_lines))
+        plain_sections.append("Please review the tenant to confirm everything is set up correctly.")
+        plain_body = "\n\n".join(plain_sections)
 
         import html
         escaped_log = html.escape(output_log)
+        counts_html = "".join(
+            f"<li>{html.escape(icon_map.get(status, '•'))} "
+            f"<strong>{html.escape(status_labels.get(status, status.title()))}</strong>: "
+            f"{counts.get(status, 0)}</li>"
+            for status in status_order if counts.get(status)
+        )
+
+        rows_html = ""
+        for entry in entries:
+            detail_text = html.escape(format_detail_plain(entry.get('detail')))
+            rows_html += f"""
+                <tr>
+                  <td>{icon_map.get(entry.get('status'), '•')}</td>
+                  <td>{html.escape(entry.get('message', ''))}</td>
+                  <td>{detail_text}</td>
+                </tr>
+            """
+
+        meta_html = ""
+        if meta_lines:
+            meta_html = "<br>".join(html.escape(line) for line in meta_lines)
 
         html_body = f"""
         <html>
@@ -25452,6 +25534,12 @@ def send_completion_email(config_type, output_log, tenant_name):
               .summary h2 {{ font-size: 18px; margin-top: 0; color: #1f2937; }}
               pre {{ background: #f8fafc; padding: 16px; border-radius: 8px; font-size: 13px; line-height: 1.6; white-space: pre-wrap; word-break: break-word; margin: 0; border: 1px solid #e2e8f0; }}
               .footer {{ padding: 16px 32px 24px; font-size: 13px; color: #64748b; border-top: 1px solid #eef2f7; }}
+              .stats {{ padding: 0 32px 20px; }}
+              .stats ul {{ list-style: none; padding: 0; margin: 12px 0 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 8px; }}
+              .stats li {{ background: #f1f5f9; padding: 8px 12px; border-radius: 6px; font-size: 13px; color: #1f2937; }}
+              table {{ width: 100%; border-collapse: collapse; margin-top: 16px; }}
+              th, td {{ text-align: left; padding: 8px 12px; font-size: 13px; border-bottom: 1px solid #e2e8f0; vertical-align: top; }}
+              th {{ background: #f8fafc; font-weight: 600; color: #0f172a; }}
             </style>
           </head>
           <body>
@@ -25462,14 +25550,13 @@ def send_completion_email(config_type, output_log, tenant_name):
                   <div>{tenant_upper}</div>
                 </div>
                 <div class="meta">
-                  <strong>Tenant</strong>
-                  {tenant_upper}
-                  <strong>Configuration</strong>
-                  {config_type}
+                  {meta_html}
                 </div>
+                {'<div class="stats"><strong>Status Overview</strong><ul>' + counts_html + '</ul></div>' if counts_html else ''}
                 <div class="summary">
                   <h2>Summary</h2>
-                <pre>{escaped_log}</pre>
+                  <pre>{escaped_log}</pre>
+                  {f"<table><thead><tr><th>Status</th><th>Message</th><th>Detail</th></tr></thead><tbody>{rows_html}</tbody></table>" if rows_html else ''}
                 </div>
                 <div class="footer">
                   Please review the configuration inside the tenant to confirm everything looks correct.

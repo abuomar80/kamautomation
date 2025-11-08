@@ -1,6 +1,6 @@
-# FOLIO Library Management System Automation Tool
+# MEDAD Library Management System Automation Tool
 
-A comprehensive Streamlit-based automation tool designed for managing and configuring FOLIO Library Management System tenants. This tool provides an intuitive web interface for automating repetitive tasks, tenant configuration, data migration, and bulk operations within the FOLIO ecosystem.
+A comprehensive Streamlit-based automation tool designed for managing and configuring MEDAD Library Management System tenants. This tool provides an intuitive web interface for automating repetitive tasks, tenant configuration, data migration, and bulk operations within the MEDAD ecosystem.
 
 ## 📋 Table of Contents
 
@@ -21,9 +21,9 @@ A comprehensive Streamlit-based automation tool designed for managing and config
 
 ## 🎯 Overview
 
-This automation tool simplifies the management of FOLIO tenants by providing a unified interface for:
+This automation tool simplifies the management of MEDAD tenants by providing a unified interface for:
 
-- **Tenant Configuration**: Automated setup of new FOLIO tenants with standardized configurations
+- **Tenant Configuration**: Automated setup of new MEDAD tenants with standardized configurations
 - **Tenant Cloning**: Copy settings and configurations from one tenant to another
 - **Data Migration**: Bulk import of users, materials, locations, and other entities
 - **Configuration Management**: Manage material types, locations, service points, calendars, and more
@@ -34,20 +34,17 @@ This automation tool simplifies the management of FOLIO tenants by providing a u
 
 ### 🔐 Authentication & Tenant Management
 - **Secure Login System**: Streamlit-authenticator based authentication
-- **Multi-Tenant Support**: Connect to multiple FOLIO environments
+- **Multi-Tenant Support**: Connect to multiple MEDAD environments
 - **Tenant Backup**: Export tenant configurations as JSON files
 - **Tenant Cloning**: Copy settings between tenants (production, staging, etc.)
 
 ### ⚙️ Basic Configuration
-Automated setup of essential tenant settings:
-- Locale settings (timezone, currency)
-- Email/SMTP configuration
-- Default job profiles for MARC import
-- Alternative title types
-- Departments
-- Circulation settings
-- Loan history configuration
-- Export profiles
+Automated end‑to‑end tenant bootstrapping now includes:
+- Locale settings (timezone, currency) and core circulation defaults
+- Help URL, price note type, analytics instance/holding/item scaffolding
+- Automatic creation/verification of address types, location tree, policies, notices
+- Hard-coded MARC templates (filters out maintenance templates such as `DSPACE_*`)
+- Rich run summary with status counts, runtime, and verification checks (also emailed)
 
 ### 🛠️ Advanced Configuration
 Comprehensive configuration management through Excel upload:
@@ -103,9 +100,9 @@ Before installing and running this tool, ensure you have:
 - **Python 3.8+** installed
 - **Chrome Browser** (for Selenium automation)
 - **ChromeDriver** (included in `drivers/` directory)
-- Access to FOLIO Okapi API endpoints
-- Valid FOLIO tenant credentials
-- Network access to FOLIO servers
+- Access to MEDAD Okapi API endpoints
+- Valid MEDAD tenant credentials
+- Network access to MEDAD servers
 
 ---
 
@@ -169,7 +166,7 @@ The application will start on `http://localhost:8501` by default.
 
 ### Supported Okapi Environments
 
-The tool supports multiple FOLIO environments:
+The tool supports multiple MEDAD environments:
 - Production: `https://okapi.medad.com`
 - UAE Production: `https://okapi-uae.ils.medad.com`
 - Staging: `https://okapi.medadstg.com`
@@ -213,14 +210,13 @@ After connecting to a tenant:
 3. Select **Timezone** and **Currency**
 4. Click **Start** to begin automated configuration
 
-This will configure:
-- SMTP settings
-- MARC job profiles
-- Alternative title types
-- Departments
-- Locale settings
-- Circulation defaults
-- Export profiles
+During the run the tool will automatically:
+- Configure SMTP reset host, locale, circulation defaults, fines/fees policies
+- Create analytics instance/holding/item and the tenant-prefixed location tree
+- Ensure address types, alternative title types, departments, loan types, identifiers
+- Apply portal integrations, help URL, and mandatory job profiles
+- Deploy the curated MARC templates set (skipping `DSPACE_*` maintenance templates)
+- Produce a detailed summary (success/warning/error counts, verification results) and email it
 
 ### 3. Advanced Configuration
 
@@ -263,7 +259,7 @@ To copy settings from one tenant to another:
 
 1. Navigate to **Users Import**
 2. Upload an Excel file with user data
-3. Map columns to FOLIO user fields:
+3. Map columns to MEDAD user fields:
    - username, barcode, patronGroup
    - personal.firstName, personal.lastName
    - personal.email, personal.phone
@@ -351,6 +347,7 @@ Utility functions for:
 - Default configurations
 - Test record creation
 - Helper functions for IDs
+- MARC template management (normalises Arabic text, filters `DSPACE_*`, configurable timeouts)
 
 ### Feature Modules
 
@@ -393,7 +390,7 @@ Utility functions for:
 
 ## 🌐 API Endpoints
 
-The tool interacts with FOLIO Okapi API endpoints. Key endpoints include:
+The tool interacts with MEDAD Okapi API endpoints. Key endpoints include:
 
 ### Authentication
 - `POST /authn/login` - Authenticate user
@@ -464,7 +461,7 @@ The tool interacts with FOLIO Okapi API endpoints. Key endpoints include:
 #### 4. Permission Errors
 **Problem**: Operations fail due to permissions
 **Solution**:
-- Ensure user has required FOLIO permissions
+- Ensure user has required MEDAD permissions
 - Check tenant permissions are correctly assigned
 - Verify user role has necessary API access
 
@@ -500,7 +497,7 @@ logging.basicConfig(level=logging.DEBUG)
 
 3. **API Tokens**:
    - Tokens are stored in session state temporarily
-   - Tokens expire based on FOLIO settings
+   - Tokens expire based on MEDAD settings
    - Do not log or expose tokens
 
 4. **File Uploads**:
@@ -588,7 +585,7 @@ Internal tool for KAM Team use only.
 
 ## 🙏 Acknowledgments
 
-Developed for and by the KAM Support Team to streamline FOLIO tenant management and reduce manual configuration time.
+Developed for and by the KAM Support Team to streamline MEDAD tenant management and reduce manual configuration time.
 
 ---
 
