@@ -5,6 +5,7 @@ import re
 import uuid
 import copy
 import ast
+from urllib.parse import quote
 import streamlit as st
 from legacy_session_state import legacy_session_state
 import requests
@@ -23620,6 +23621,11 @@ def _normalize_permissions(values):
     return normalized
 
 
+def _slugify_permission_name(label: str) -> str:
+    slug = re.sub(r"[^A-Za-z0-9]+", "_", label).strip("_").lower()
+    return slug or "permission_set"
+
+
 PERMISSION_SET_NASEEJ_PERMISSIONS_RAW = '''
 [
 "ui-bulk-edit.app-edit.users",
@@ -24268,7 +24274,31 @@ PERMISSION_SET_NASEEJ_PERMISSIONS_RAW = '''
 ]
 '''
 
-PERMISSION_SET_UUID_NAMESPACE = uuid.UUID("d3f6f4c8-8044-4bc8-a9fa-3fe0c854de3c")
+SIP2_PERMISSION_SET_PERMISSIONS = [
+    "circulation.check-in-by-barcode.post",
+    "circulation.check-out-by-barcode.post",
+    "circulation.requests.collection.get",
+    "search.instances.collection.get",
+    "circulation.loans.collection.get",
+    "configuration.entries.collection.get",
+    "configuration.entries.item.get",
+    "manualblocks.collection.get",
+    "manualblocks.item.get",
+    "accounts.collection.get",
+    "accounts.item.get",
+    "users.collection.get",
+    "users.item.get",
+    "patron-blocks.automated-patron-blocks.collection.get",
+    "inventory.items.collection.get",
+    "circulation.renew-by-barcode.post",
+    "usergroups.collection.get",
+    "users-bl.item.get",
+    "usergroups.item.get",
+    "inventory-storage.holdings.item.get",
+    "inventory.instances.item.get",
+    "feefines.collection.get",
+    "patron-pin.validate"
+]
 
 PERMISSION_GROUP_DEFINITIONS = [
     {
@@ -24417,6 +24447,10 @@ PERMISSION_SET_ALL_PERMISSIONS = _normalize_permissions(
     ast.literal_eval(PERMISSION_SET_NASEEJ_PERMISSIONS_RAW)
 )
 
+for backend_permission in SIP2_PERMISSION_SET_PERMISSIONS:
+    if backend_permission not in PERMISSION_SET_ALL_PERMISSIONS:
+        PERMISSION_SET_ALL_PERMISSIONS.append(backend_permission)
+
 
 def _collect_group_permissions(all_permissions):
     assigned = set()
@@ -24438,20 +24472,32 @@ def _collect_group_permissions(all_permissions):
 
 
 def _build_permission_set_definitions(all_permissions):
+    master_perm_name = _slugify_permission_name("Naseej All Permissions")
     definitions = [
         {
-            "id": "33f7b4fe-990f-487a-8450-fd68833b4438",
             "displayName": "Naseej",
+            "permissionName": master_perm_name,
             "mutable": True,
             "subPermissions": all_permissions
         }
     ]
 
+    sip2_perm_name = _slugify_permission_name("Naseej SIP2 Service Desk")
+    definitions.append(
+        {
+            "displayName": "SIP2 (Service Desk)",
+            "permissionName": sip2_perm_name,
+            "mutable": True,
+            "subPermissions": SIP2_PERMISSION_SET_PERMISSIONS
+        }
+    )
+
     for name, perms in _collect_group_permissions(all_permissions):
+        perm_name = _slugify_permission_name(f"Naseej {name} Full Access")
         definitions.append(
             {
-                "id": str(uuid.uuid5(PERMISSION_SET_UUID_NAMESPACE, name.lower())),
                 "displayName": f"{name} (Full Access)",
+                "permissionName": perm_name,
                 "mutable": True,
                 "subPermissions": perms
             }
@@ -24885,45 +24931,25 @@ async def ensure_permission_sets():
     updated_sets = []
 
     for definition in PERMISSION_SET_DEFINITIONS:
+        sub_permissions = _normalize_permissions(definition.get("subPermissions", []))
         payload = {
-            "id": definition["id"],
-            "displayName": definition.get("displayName", definition["id"]),
+            "permissionName": definition["permissionName"],
+            "displayName": definition.get("displayName", definition["permissionName"]),
             "mutable": definition.get("mutable", True),
-            "subPermissions": _normalize_permissions(definition.get("subPermissions", []))
+            "subPermissions": sub_permissions
         }
 
-        perm_id = payload["id"]
+        perm_name = payload["permissionName"]
 
         try:
             existing_resp = requests.get(
-                f"{okapi}/perms/permissions/{perm_id}",
+                f"{okapi}/perms/permissions/{quote(perm_name, safe='')}",
                 headers=headers,
                 timeout=DEFAULT_TIMEOUT
             )
         except Exception as exc:
-            logging.error("Failed to fetch permission set %s: %s", perm_id, exc)
+            logging.error("Failed to fetch permission set %s: %s", perm_name, exc)
             return False, f"Permission set fetch failed: {exc}"
-
-        if existing_resp.status_code == 404:
-            try:
-                search_resp = requests.get(
-                    f"{okapi}/perms/permissions?query=(displayName==\"{payload['displayName']}\")",
-                    headers=headers,
-                    timeout=DEFAULT_TIMEOUT
-                )
-                if search_resp.status_code == 200:
-                    results = search_resp.json()
-                    permissions = results.get("permissions") if isinstance(results, dict) else []
-                    if permissions:
-                        perm_id = permissions[0].get("id", perm_id)
-                        payload["id"] = perm_id
-                        existing_resp = requests.get(
-                            f"{okapi}/perms/permissions/{perm_id}",
-                            headers=headers,
-                            timeout=DEFAULT_TIMEOUT
-                        )
-            except Exception:
-                pass
 
         if existing_resp.status_code == 200:
             existing = existing_resp.json()
@@ -24933,7 +24959,7 @@ async def ensure_permission_sets():
             if existing_display != payload["displayName"] or existing_perms != payload["subPermissions"]:
                 try:
                     response = requests.put(
-                        f"{okapi}/perms/permissions/{perm_id}",
+                        f"{okapi}/perms/permissions/{quote(perm_name, safe='')}",
                         headers=headers,
                         data=json.dumps(payload),
                         timeout=DEFAULT_TIMEOUT
