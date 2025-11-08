@@ -234,11 +234,13 @@ if st.session_state.allow_tenant:
     
     options = st.multiselect(
         'Please choose users to create',
-        user_options)
+        user_options,
+        help="Select one or more default accounts to create. The button below stays available even when all accounts are selected.")
 
-    result = st.button("Create users")
+    st.write("")
+    create_clicked = st.button("Create users", type="primary", use_container_width=False, disabled=len(options) == 0)
 
-    if result:
+    if create_clicked:
         perm()
         create_user()
 else:
