@@ -43,7 +43,7 @@ Automated end‑to‑end tenant bootstrapping now includes:
 - Locale settings (timezone, currency) and core circulation defaults
 - Help URL, price note type, analytics instance/holding/item scaffolding
 - Automatic creation/verification of address types, location tree, policies, notices
-- Hard-coded MARC templates (filters out maintenance templates such as `DSPACE_*`)
+- Hard-coded MARC templates (Bib and Authority)
 - Rich run summary with status counts, runtime, and verification checks (also emailed)
 
 ### 🛠️ Advanced Configuration
@@ -167,11 +167,8 @@ The application will start on `http://localhost:8501` by default.
 ### Supported Okapi Environments
 
 The tool supports multiple MEDAD environments:
-- Production: `https://okapi.medad.com`
-- UAE Production: `https://okapi-uae.ils.medad.com`
-- Staging: `https://okapi.medadstg.com`
-- QA: `https://okapi.qa.medad.com`
-- And more (see tenant connection pages)
+- KSA Production (1,2)
+- UAE Production
 
 ### Authentication Configuration
 
