@@ -4,6 +4,7 @@ import json
 import re
 import uuid
 import copy
+import ast
 import streamlit as st
 from legacy_session_state import legacy_session_state
 import requests
@@ -23606,6 +23607,861 @@ def _get_normalized_templates():
     return normalized
 
 
+def _normalize_permissions(values):
+    normalized = []
+    seen = set()
+    for value in values:
+        if not value:
+            continue
+        value = value.strip()
+        if value and value not in seen:
+            seen.add(value)
+            normalized.append(value)
+    return normalized
+
+
+PERMISSION_SET_NASEEJ_PERMISSIONS_RAW = '''
+[
+"ui-bulk-edit.app-edit.users",
+"ui-inventory-process.process.post",
+"ui-inventory-process.process.delete",
+"ui-inventory-process.process.get",
+"ui-quick-marc.quick-marc-editor.heading-verification",
+"medad-ai.admin",
+"medad-ai.settings.all",
+"medad-ai.settings.put",
+"medad-ai.settings.get",
+"ui-users.settings.addresstypes",
+"ui-users.settings.comments",
+"ui-users.settings.feefines",
+"ui-users.settings.owners",
+"ui-users.settings.limits",
+"ui-users.settings.patron-block-templates",
+"ui-users.settings.usergroups",
+"ui-users.settings.payments",
+"ui-users.settings.permsets",
+"ui-users.settings.refunds",
+"ui-users.settings.transfers",
+"ui-users.settings.transfertypes",
+"ui-users.settings.waives",
+"ui-users.settings.conditions",
+"ui-inventory-process.process.put",
+"c49a5d68-f8e9-48a4-9ebe-170f86b28f5f",
+"932e603f-cccf-46d4-bbb3-5022f8576f68",
+"ui-agreements.agreements.delete",
+"ui-agreements.agreements.edit",
+"ui-agreements.resources.edit",
+"ui-agreements.platforms.edit",
+"ui-agreements.agreements.file.download",
+"ui-agreements.agreements.view",
+"ui-agreements.resources.view",
+"ui-agreements.platforms.view",
+"ui-search.codexsearch",
+"ui-selections.selectionList.blockList.all",
+"ui-selections.selectionList.importProcess.all",
+"ui-selections.selectionList.mappings.all",
+"ui-resources-dedup.resources-dedup.resources.all",
+"ui-resources-dedup.resources-dedup.jobs.all",
+"ui-selections.selectionList.all",
+"ui-analytics.all",
+"ui-analytics.reports.read",
+"ui-analytics.schedule.create",
+"ui-analytics.schedule.delete",
+"ui-analytics.schedule.read",
+"ui-inventory-process.all",
+"ui-inventory-process.process.approveDeleteLongMissing",
+"ui-inventory-process.process.close",
+"ui-inventory-process.process.convertLongMissing",
+"ui-inventory-process.process.convertMissing",
+"ui-inventory-process.process.create",
+"ui-inventory-process.process.export",
+"ui-inventory-process.process.report",
+"ui-inventory-process.process.import",
+"ui-inventory-process.process.lock",
+"ui-inventory-process.process.markDamaged",
+"ui-inventory-process.process.markWithdrawn",
+"module.inventory-process.enabled",
+"ui-inventory-process.printAndDownload",
+"ui-inventory-process.process.scan",
+"ui-inventory-process.process.unlock",
+"ui-inventory-process.process.update",
+"ui-inventory-process.viewDetails",
+"ui-users.barcode.configuration",
+"ui-users.barcode.sequence",
+"ui-bulk-edit.delete",
+"ui-bulk-edit.query",
+"ui-bulk-edit.logs.view",
+"ui-bulk-edit.app-edit",
+"ui-bulk-edit.app-view",
+"ui-bulk-edit.app-delete",
+"ui-bulk-edit.edit",
+"ui-bulk-edit.view",
+"ui-inventory.call-number-browse.view",
+"ui-inventory.call-number-unique-constraint",
+"c48fa4c5-922d-41d4-bca3-318f6185da71",
+"bb79cd71-54dd-40b4-b38f-8d62c7b05d6c",
+"ui-checkin.all",
+"ui-checkout.all",
+"ui-checkout.circulation",
+"ui-checkout.viewFeeFines",
+"ui-checkout.viewLoans",
+"ui-checkout.viewRequests",
+"40e8ace6-0f31-49d0-8e05-03369df55ca7",
+"ui-circulation-log.log-event.all",
+"ui-circulation-log.log-event.view",
+"content.enrichment.enabled",
+"ui-courses.add-edit-items",
+"ui-courses.maintain-items",
+"ui-courses.all",
+"ui-courses.read-all",
+"ui-courses.read-add-edit",
+"ui-courses.maintain-courses",
+"ui-selections.selectionList.mappings.post",
+"ui-selections.selectionList.rfq.post",
+"ui-selections.selectionList.post",
+"ui-selections.selectionList.titles.post",
+"ui-dashboard.dashboards.admin",
+"ui-dashboard.dashboards.manage",
+"ui-tenant-settings.data.access.management",
+"ui-data-import.logs.delete",
+"ui-data-import.manage",
+"ui-data-import.view",
+"ui-selections.selectionList.mappings.delete",
+"ui-selections.selectionList.titles.delete",
+"ui-tenant-settings.login.concurrent-tokens-limit.put",
+"ui-tenant-settings.portal.ingestor.folio.configurations.put",
+"ui-tenant-settings.portal.ingestor.marc.configurations.put",
+"ui-eholdings.titles-packages.create-delete",
+"ui-eholdings.records.edit",
+"ui-eholdings.package-title.select-unselect",
+"ui-eholdings.app.enabled",
+"ui-eholdings.costperuse.view",
+"ui-tenant-settings.email-gateway-configuration",
+"ui-erm-comparisons.jobs.edit",
+"ui-erm-comparisons.jobs.delete",
+"ui-erm-comparisons.jobs.view",
+"plugin-eusage-reports.view-charts",
+"plugin-eusage-reports.edit-matches",
+"ui-erm-usage.all",
+"ui-erm-usage.udp.create-edit",
+"ui-erm-usage.udp.delete",
+"ui-erm-usage.reports.delete",
+"ui-erm-usage-harvester.start.single",
+"ui-erm-usage.reports.create",
+"ui-erm-usage.view",
+"ui-analytics.reports.execute",
+"reports.execute",
+"ui-export-manager.export-manager.all",
+"ui-export-manager.jobs.downloadAndResend",
+"ui-export-manager.export-manager.view",
+"ui-plugin-create-inventory-records.create",
+"ui-users.feefineactions",
+"ui-users.accounts",
+"ui-users.manual_charge",
+"ui-users.manual_pay",
+"ui-users.manual_waive",
+"ui-finance.acq.unit.assignment.assign",
+"ui-finance.allocations.create",
+"ui-finance.transfers.create",
+"ui-finance.ledger.rollover",
+"ui-finance.exportCSV",
+"ui-finance.acq.unit.assignment.manage",
+"ui-finance.manually-release-encumbrances",
+"ui-finance.fund-budget.recalculateTotals",
+"ui-finance.encumbrance.unrelease",
+"ui-finance.fiscal-year.view",
+"ui-finance.fund-budget.view",
+"ui-finance.group.view",
+"ui-finance.ledger.view",
+"ui-finance.fiscal-year.edit",
+"ui-finance.fund-budget.edit",
+"ui-finance.group.edit",
+"ui-finance.ledger.edit",
+"ui-finance.fiscal-year.create",
+"ui-finance.fund-budget.create",
+"ui-finance.group.create",
+"ui-finance.ledger.create",
+"ui-finance.fiscal-year.delete",
+"ui-finance.fund-budget.delete",
+"ui-finance.group.delete",
+"ui-finance.ledger.delete",
+"ui-plugin-find-agreement.search",
+"ui-plugin-find-eresource.search",
+"ui-plugin-find-license.search",
+"fqm.query.all",
+"fqm.query.async.delete",
+"fqm.entityTypes.item.get",
+"fqm.entityTypes.collection.get",
+"fqm.entityTypes.item.columnValues.get",
+"fqm.query.purge",
+"fqm.materializedViews.post",
+"fqm.query.async.results.get",
+"fqm.query.sync.get",
+"fqm.query.async.post",
+"ui-users.reIndex.get.records",
+"ui-selections.selectionList.blockList.details",
+"ui-tenant-settings.login.concurrent-tokens-limit.get",
+"ui-selections.selectionList.details",
+"ui-instance-dedup.instance-dedup.duplication-settings.get",
+"ui-selections.selectionList.duplicationSettings.details",
+"ui-instance-dedup.instance-dedup.general-settings.get",
+"ui-inventory.inventory-storage.bound-with-parts.collection.get",
+"ui-tenant-settings.portal.ingestor.folio.configurations.get",
+"ui-tenant-settings.portal.ingestor.marc.configurations.get",
+"ui-inventory.items-in-transit-report.get",
+"ui-instance-dedup.instance-dedup.instances.get",
+"ui-selections.selectionList.mappings.get",
+"ui-selections.selectionList.get",
+"ui-selections.selectionList.titles.get",
+"ui-selections.selectionList.voters.get",
+"ui-inventory.merge-job",
+"ui.analytics.reports.get",
+"ui-selections.selectionList.mappings.details",
+"ui-selections.selectionList.titles.details",
+"ui-gobi-settings.permission.settings",
+"ui-selections.selectionList.importFile.all",
+"ui-tenant-settings.portal.ingestor.folio.configurations",
+"ui-tenant-settings.portal.ingestor.holding-item.configurations",
+"ui-tenant-settings.portal.ingestor.marc.configurations",
+"ui-inventory.all-permissions.TEMPORARY",
+"ui-inventory.items.create-in-transit-report",
+"ui-inventory.instance.createOrder",
+"ui-inventory.instance.delete",
+"ui-inventory.instance.view-staff-suppressed-records",
+"ui-inventory.single-record-import",
+"ui-inventory.items.mark-in-process",
+"ui-inventory.items.mark-items-in-process",
+"ui-inventory.items.mark-in-process-non-requestable",
+"ui-inventory.items.mark-intellectual-item",
+"ui-inventory.items.mark-long-missing",
+"ui-inventory.items.mark-restricted",
+"ui-inventory.items.mark-unavailable",
+"ui-inventory.items.mark-unknown",
+"ui-inventory.items.mark-items-withdrawn",
+"ui-inventory.holdings.move",
+"ui-inventory.item.move",
+"ui-inventory.instance.set-deletion-and-staff-suppress",
+"ui-inventory.instance.view",
+"ui-inventory.holdings.create",
+"ui-inventory.instance.create",
+"ui-inventory.item.create",
+"ui-inventory.holdings.edit",
+"ui-inventory.instance.edit",
+"ui-inventory.item.edit",
+"ui-inventory.holdings.delete",
+"ui-inventory.item.delete",
+"ui-inventory.item.markasmissing",
+"ui-invoice.approve",
+"ui-invoice.acq.unit.assignment.assign",
+"ui-invoice.invoice.edit",
+"ui-invoice.invoice.view",
+"ui-invoice.invoice.create",
+"ui-invoice.invoice.delete",
+"ui-invoice.cancel",
+"ui-invoice.batchVoucher.download",
+"ui-invoice.exportCSV",
+"ui-invoice.acq.unit.assignment.manage",
+"ui-invoice.pay",
+"ui-invoice.payDifferentFY",
+"ui-invoice.voucherExport",
+"ui-inventory.item.barcode.configuration",
+"ui-inventory.item.barcode.sequence",
+"ui-inventory.label-printing",
+"ui-licenses.licenses.delete",
+"ui-licenses.licenses.edit",
+"ui-licenses.licenses.file.download",
+"ui-licenses.licenses.view",
+"module.lists.all",
+"module.lists.delete",
+"module.lists.refresh",
+"module.lists.enabled",
+"module.lists.export",
+"ui-local-kb-admin.jobs.edit",
+"ui-local-kb-admin.jobs.delete",
+"ui-local-kb-admin.proxyServer.manage",
+"ui-local-kb-admin.kbs.manage",
+"ui-local-kb-admin.jobs.view",
+"ui-local-kb-admin.proxyServer.view",
+"ui-local-kb-admin.kbs.view",
+"login-saml.all",
+"ui-marc-authorities.authority-record.create",
+"ui-marc-authorities.authority-record.delete",
+"ui-marc-authorities.authority-record.edit",
+"ui-marc-authorities.authority-record.view",
+"ui-inventory.merge-instances",
+"ui-inventory.records-editor.records.item.put",
+"b097bcbe-72ce-4d88-b909-290831bff471",
+"ui-notes.item.assign-unassign",
+"ui-notes.item.create",
+"ui-notes.item.delete",
+"ui-notes.item.edit",
+"ui-notes.item.view",
+"offline-circulation",
+"ui-oa.all-open-access.edit",
+"ui-oa.all-open-access.manage",
+"ui-oa.all-open-access.view",
+"ui-orders.order.approve",
+"ui-orders.acq.unit.assignment.assign",
+"ui-orders.orders.create",
+"ui-orders.orders.delete",
+"ui-orders.orders.edit",
+"ui-orders.orders.view",
+"ui-orders.order-lines.cancel",
+"ui-orders.order.cancel",
+"ui-orders.order.exportCSV",
+"ui-orders.acq.unit.assignment.manage",
+"ui-orders.order.reopen",
+"ui-orders.order.showHidden",
+"ui-orders.order.unopen",
+"ui-orders.order.updateEncumbrances",
+"ui-organizations.acqUnits.assign",
+"ui-organizations.privileged-contacts.view",
+"ui-organizations.privileged-contacts.edit",
+"ui-organizations.integrations.creds.view",
+"ui-organizations.integrations.creds.edit",
+"ui-organizations.creds.view",
+"ui-organizations.creds.manage",
+"ui-organizations.acqUnits.manage",
+"ui-organizations.view",
+"ui-organizations.banking-information.edit",
+"ui-organizations.banking-information.view",
+"ui-organizations.edit",
+"ui-organizations.banking-information.create",
+"ui-organizations.create",
+"ui-organizations.banking-information.delete",
+"ui-organizations.delete",
+"ui-selections.selectionList.titles.patch",
+"ui-work-list.jobs.schedule.pause",
+"ui-tenant-settings.portal.ingestor.records.count.get",
+"ui-tenant-settings.portal.ingestor.records.reset.core",
+"erm.pushkb.manage",
+"erm.pushkb.view",
+"ui-quick-marc.quick-marc-authority-records.linkUnlink",
+"ui-quick-marc.marc-records-converter.marcBytesToJson.post",
+"ui-quick-marc.quick-marc-authorities-editor.create",
+"ui-quick-marc.quick-marc-editor.create",
+"ui-quick-marc.quick-marc-holdings-editor.create",
+"ui-quick-marc.quick-marc-editor.duplicate",
+"ui-quick-marc.quick-marc-editor.view",
+"ui-quick-marc.quick-marc-holdings-editor.view",
+"ui-quick-marc.quick-marc-authorities-editor.all",
+"ui-quick-marc.quick-marc-editor.all",
+"ui-quick-marc.quick-marc-holdings-editor.all",
+"ui-receiving.acq-units.assignment.assign",
+"ui-receiving.exportCSV",
+"ui-receiving.acq-units.assignment.manage",
+"ui-receiving.view",
+"ui-receiving.edit",
+"ui-receiving.create",
+"ui-receiving.delete",
+"ui-users.reIndex.create.index",
+"ui-users.reIndex",
+"ui-ldp.all",
+"ui-analytics.reports.all",
+"ui-requests.all",
+"ui-requests.moveRequest",
+"ui-requests.reorderQueue",
+"ui-requests.view",
+"ui-requests.create",
+"ui-requests.edit",
+"ui-resources-dedup.auto-merge",
+"module.resources-dedup.enabled",
+"ui-work-list.jobs.schedule.resume",
+"login-saml.configuration.put",
+"login-saml.configuration.get",
+"061a9500-0688-42a9-9313-21af623cdcc1",
+"ui-selections.selectionList.titles.all",
+"ui-analytics.reports.send",
+"ui-inventory.instances.sendToDar.post",
+"ui-serials-management.predictedpieces.edit",
+"ui-serials-management.rulesets.edit",
+"ui-serials-management.serials.edit",
+"ui-serials-management.predictedpieces.view",
+"ui-serials-management.serials.view",
+"ui-acquisition-units.settings.all",
+"ui-acquisition-units.settings.userAssignments",
+"ui-acquisition-units.settings.view",
+"ui-agreements.supplementaryProperties.view",
+"ui-agreements.appSettings.manage",
+"ui-agreements.generalSettings.manage",
+"ui-agreements.appSettings.view",
+"ui-agreements.generalSettings.view",
+"ui-agreements.supplementaryProperties.manage",
+"ui-agreements.picklists.manage",
+"ui-agreements.picklists.view",
+"settings.analytics.enabled",
+"settings.inventory-process.enabled",
+"ui-calendar.create",
+"ui-calendar.delete",
+"ui-calendar.update",
+"ui-calendar.view",
+"ui-circulation.settings.cancellation-reasons",
+"ui-circulation.settings.edit-circulation-rules",
+"ui-circulation.settings.circulation-rules",
+"ui-circulation.settings.fixed-due-date-schedules",
+"ui-circulation.settings.loan-policies",
+"ui-circulation.settings.lost-item-fees-policies",
+"ui-circulation.settings.notice-policies",
+"ui-circulation.settings.other-settings",
+"ui-circulation.settings.overdue-fines-policies",
+"ui-circulation.settings.notice-templates",
+"ui-circulation.settings.request-policies",
+"ui-circulation.settings.staff-slips",
+"ui-circulation.settings.edit-loan-history",
+"ui-circulation.settings.loan-history",
+"ui-circulation.settings.view-loan-policies",
+"ui-circulation.settings.view-lost-item-fees-policies",
+"ui-circulation.settings.view-overdue-fines-policies",
+"ui-circulation.settings.view-circulation-rules",
+"ui-circulation.settings.view-staff-slips",
+"ui-circulation.settings.titleLevelRequests",
+"ui-courses.maintain-settings",
+"ui-courses.view-settings",
+"settings.data-export.view",
+"ui-data-export.settings.enabled",
+"ui-data-import.settings.readOnly",
+"ui-data-import.settings.manage",
+"ui-developer.settings.passwd",
+"ui-developer.settings.dependencies",
+"ui-developer.settings.translations",
+"ui-developer.settings.stripesInspector",
+"ui-developer.settings.okapiConsole",
+"ui-developer.settings.permissionsInspector",
+"ui-developer.settings.userLocale",
+"ui-developer.settings.okapiConfiguration",
+"ui-developer.settings.okapiQuery",
+"ui-developer.settings.app-manager",
+"ui-developer.settings.okapiConsole.environment",
+"ui-developer.settings.okapiConsole.modules",
+"ui-developer.settings.okapiTimers",
+"ui-developer.settings.configuration",
+"ui-developer.settings.handler-surface",
+"ui-developer.settings.token",
+"ui-developer.settings.perms",
+"ui-developer.settings.plugin-surface",
+"ui-developer.settings.locale",
+"ui-eholdings.settings.assignedUser.edit",
+"ui-eholdings.settings.access-types.create-edit",
+"ui-eholdings.settings.kb.edit",
+"ui-eholdings.settings.access-types.all",
+"ui-eholdings.settings.custom-labels.edit",
+"ui-eholdings.settings.kb.delete",
+"ui-eholdings.settings.access-types.view",
+"ui-eholdings.settings.custom-labels.view",
+"ui-eholdings.settings.root-proxy.edit",
+"ui-eholdings.settings.usage-consolidation.create-edit",
+"ui-eholdings.settings.enabled",
+"ui-eholdings.settings.usage-consolidation.view",
+"ui-erm-usage.generalSettings.manage",
+"ui-finance.settings.exportFundAndExpenseClassCodes",
+"ui-finance.settings.view",
+"ui-finance.settings.all",
+"settings.instance-dedup.enabled",
+"ui-inventory.settings.single-record-import",
+"ui-inventory.settings.hrid-handling",
+"ui-inventory.settings.alternative-title-types",
+"ui-inventory.settings.call-number-types",
+"ui-inventory.settings.classification-types",
+"ui-inventory.settings.contributor-types",
+"ui-inventory.settings.instance-formats",
+"ui-inventory.settings.holdings-note-types",
+"ui-inventory.settings.holdings-sources",
+"ui-inventory.settings.holdings-types",
+"ui-inventory.settings.ill-policies",
+"ui-inventory.settings.instance-note-types",
+"ui-inventory.settings.instance-statuses",
+"ui-inventory.settings.item-note-types",
+"ui-inventory.settings.loantypes",
+"ui-inventory.settings.modes-of-issuance",
+"ui-inventory.settings.instance-types",
+"ui-inventory.settings.materialtypes",
+"ui-inventory.settings.nature-of-content-terms",
+"ui-inventory.settings.identifier-types",
+"ui-inventory.settings.statistical-code-types",
+"ui-inventory.settings.statistical-codes",
+"ui-inventory.settings.electronic-access-relationships",
+"ui-inventory.settings.fast-add",
+"ui-inventory.settings.list.view",
+"ui-invoice.batchVoucher.exportConfigs.credentials.view",
+"ui-invoice.batchVoucher.exportConfigs.credentials.edit",
+"ui-invoice.settings.all",
+"ui-invoice.settings.view",
+"ui-licenses.appSettings.manage",
+"ui-licenses.appSettings.view",
+"ui-licenses.terms.manage",
+"ui-licenses.picklists.manage",
+"ui-licenses.terms.view",
+"ui-licenses.picklists.view",
+"ui-marc-authorities.settings.authority-files.view",
+"ui-marc-authorities.settings.authority-files.all",
+"ui-marc-authorities.settings.auto-linking.all",
+"ui-medad-ai.settings.all",
+"ui-medad-ai.settings.put",
+"settings.medad-ai.enabled",
+"ui-medad-ai.settings.get",
+"ui-medad-translations.campuses.enabled",
+"ui-medad-translations.institutions.enabled",
+"ui-medad-translations.libraries.enabled",
+"ui-medad-translations.location.enabled",
+"ui-medad-translations.all_translation",
+"settings.medad-translations.enabled",
+"ui-myprofile.settings.change-password",
+"ui-notes.settings.edit",
+"ui-notes.settings.view",
+"ui-oai-pmh.view",
+"ui-oai-pmh.edit",
+"ui-oai-pmh.logs",
+"ui-oa.allSettings.manage",
+"ui-orders.settings.custom-fields.delete",
+"ui-orders.settings.custom-fields.edit",
+"ui-orders.settings.view",
+"ui-orders.settings.all",
+"ui-orders.settings.custom-fields.view",
+"ui-orders.settings.order-templates.view",
+"ui-orders.settings.order-templates.edit",
+"ui-orders.settings.order-templates.create",
+"ui-orders.settings.order-templates.delete",
+"ui-organizations.settings",
+"ui-organizations.settings.view",
+"ui-remote-storage.settings.remote-storages.edit",
+"ui-remote-storage.settings.remote-storages.view",
+"ui-ldp.settings.record-limits",
+"ui-ldp.settings.dbinfo",
+"ui-ldp.settings.tqrepos",
+"ui-ldp.settings.table-availability",
+"settings.resources-dedup.enabled",
+"ui-resources-dedup.resources-dedup.settings.get",
+"ui-resources-dedup.resources-dedup.settings.update",
+"settings.selections.enabled",
+"ui-serials-management.picklists.manage",
+"ui-serials-management.picklists.view",
+"settings.service-interaction.enabled",
+"ui-service-interaction.numberGenerator.manage",
+"ui-service-interaction.numberGenerator.view",
+"ui-tags.settings",
+"ui-tags.settings.all",
+"ui-tags.settings.view",
+"ui-tenant-settings.settings.servicepoints",
+"ui-tenant-settings.settings.location",
+"ui-tenant-settings.settings.locale",
+"ui-tenant-settings.settings.plugins",
+"ui-tenant-settings.settings.sso",
+"ui-tenant-settings.settings.addresses",
+"ui-tenant-settings.settings.heading",
+"ui-tenant-settings.settings.marc-editor",
+"ui-tenant-settings.settings.exchange-rates",
+"ui-tenant-settings.settings.view",
+"ui-tenant-settings.settings.location.view",
+"ui-users.settings.addresstypes.all",
+"ui-users.settings.feefines.all",
+"ui-users.settings.manual-charges.all",
+"ui-users.settings.owners.all",
+"ui-users.settings.limits.all",
+"ui-users.settings.patron-block-templates.all",
+"ui-users.settings.usergroups.all",
+"ui-users.settings.payments.all",
+"ui-users.settings.permsets.all",
+"ui-users.settings.refunds.all",
+"ui-users.settings.transfers.all",
+"ui-users.settings.waives.all",
+"ui-users.settings.customfields.edit",
+"ui-users.settings.departments.create.edit.view",
+"ui-users.settings.customfields.all",
+"ui-users.settings.departments.all",
+"ui-users.settings.comments.all",
+"ui-users.settings.addresstypes.view",
+"ui-users.settings.patron-blocks.view",
+"ui-users.settings.conditions.edit",
+"ui-users.settings.customfields.view",
+"ui-users.settings.feefines.view",
+"ui-users.settings.general.view",
+"ui-users.settings.usergroups.view",
+"ui-users.settings.permsets.view",
+"ui-users.settings.view",
+"settings.work-list.enabled",
+"3760f54b-8127-4f30-8b04-a92be55669ba",
+"smart-cataloger.all",
+"ui-tenant-settings.sms-gateway-configuration",
+"ui-tenant-settings.smtp-configuration",
+"ui-inventory.subjects.view",
+"ui-tags.view",
+"ui-tags.all",
+"79409393-8fd0-4861-ab76-751577a01b44",
+"ui-plugin-bursar-export.bursar-exports.all",
+"ui-plugin-bursar-export.bursar-exports.manual",
+"ui-plugin-bursar-export.bursar-exports.view",
+"module.analytics.enabled",
+"ui-data-export.app.enabled",
+"module.instance-dedup.enabled",
+"module.renew.enabled",
+"module.selections.enabled",
+"module.service-interaction.enabled",
+"module.vote.enabled",
+"module.work-list.enabled",
+"ui-instance-dedup.instance-dedup.duplication-settings.update",
+"ui-selections.selectionList.duplicationSettings.update",
+"ui-selections.selectionList.mappings.update",
+"ui-instance-dedup.instance-dedup.general-settings.update",
+"ui-selections.selectionList.blockList.update",
+"ui-selections.selectionList.update",
+"ui-selections.selectionList.voting.update",
+"user-import.all",
+"ui-users.overrideItemBlock",
+"ui-users.overridePatronBlock",
+"ui-users.user.image.delete",
+"ui-users.user.image.download",
+"ui-users.user.image.upload",
+"13defd6c-ff04-4c39-a52a-7c651757af6d",
+"ui-users.editperms",
+"ui-users.edituserservicepoints",
+"ui-users.opentransactions",
+"ui-users.create",
+"ui-users.feesfines.actions.all",
+"ui-users.patron_blocks",
+"ui-users.editproxies",
+"ui-users.delete",
+"ui-users.edit",
+"ui-users.lost-items.requiring-actual-cost",
+"ui-users.feesfines.view",
+"ui-users.viewperms",
+"ui-users.profile-pictures.view",
+"ui-users.viewproxies",
+"ui-users.viewuserservicepoints",
+"ui-users.view",
+"ui-users.profile-pictures.all",
+"ui-users.cashDrawerReport",
+"ui-users.financialTransactionReport",
+"ui-users.manualProcessRefundsReport",
+"ui-users.reset.password",
+"ui-users.loans.anonymize",
+"ui-users.loans.change-due-date",
+"ui-users.loans.claim-item-returned",
+"ui-users.loans.declare-item-lost",
+"ui-users.loans.declare-claimed-returned-item-as-missing",
+"ui-users.loans.renew",
+"ui-users.loans.renew-override",
+"ui-users.loans.view",
+"ui-users.loans.all",
+"ui-users.loans.add-patron-info",
+"ui-users.loans.add-staff-info",
+"ui-users.remove-patron-notice-print-jobs",
+"ui-users.view-patron-notice-print-jobs",
+"ui-users.requests.all",
+"ui-votes.selectionList.selectorList.get",
+"ui-votes.selectionList.selectorTitles.get",
+"ui-selections.selectionList.rfq.get",
+"ui-work-list.all",
+"ui-work-list.assign",
+"ui-work-list.create",
+"ui-work-list.crud.worklist",
+"ui-work-list.worklists.globalDelete",
+"ui-work-list.delete",
+"ui-work-list.export.process",
+"ui-work-list.global.processes",
+"ui-work-list.global.update",
+"ui-work-list.jobs",
+"ui-work-list.read",
+"ui-work-list.schedule",
+"ui-work-list.schedule.create",
+"ui-work-list.schedule.read",
+"ui-work-list.schedule.delete"
+]
+'''
+
+PERMISSION_SET_UUID_NAMESPACE = uuid.UUID("d3f6f4c8-8044-4bc8-a9fa-3fe0c854de3c")
+
+PERMISSION_GROUP_DEFINITIONS = [
+    {
+        "name": "Inventory & Metadata",
+        "prefixes": [
+            "ui-inventory.",
+            "ui-inventory-process.",
+            "module.inventory-process.",
+            "settings.inventory-process.",
+            "ui-quick-marc.",
+            "ui-instance-dedup.",
+            "module.instance-dedup.",
+            "settings.instance-dedup.",
+            "ui-resources-dedup.",
+            "module.resources-dedup.",
+            "settings.resources-dedup.",
+            "ui-serials-management.",
+            "ui-marc-authorities."
+        ],
+        "exact": [
+            "ui-inventory.merge-job"
+        ]
+    },
+    {
+        "name": "Users & Circulation",
+        "prefixes": [
+            "ui-users.",
+            "ui-checkout.",
+            "ui-checkin.",
+            "ui-requests.",
+            "ui-circulation.",
+            "ui-circulation-log.",
+            "ui-calendar.",
+            "ui-courses.",
+            "ui-notes.",
+            "ui-myprofile.",
+            "ui-service-interaction.",
+            "ui-tags."
+        ],
+        "exact": [
+            "offline-circulation"
+        ]
+    },
+    {
+        "name": "Acquisitions & Finance",
+        "prefixes": [
+            "ui-orders.",
+            "ui-invoice.",
+            "ui-finance.",
+            "ui-organizations.",
+            "ui-acquisition-units.",
+            "ui-receiving.",
+            "ui-plugin-bursar-export.",
+            "ui-plugin-find-agreement.",
+            "ui-plugin-find-eresource.",
+            "ui-plugin-find-license.",
+            "ui-gobi-settings.",
+            "module.renew."
+        ],
+        "exact": []
+    },
+    {
+        "name": "Electronic Resources & ERM",
+        "prefixes": [
+            "ui-agreements.",
+            "ui-eholdings.",
+            "plugin-eusage-reports.",
+            "ui-erm",
+            "ui-local-kb-admin.",
+            "erm.pushkb",
+            "ui-oa.",
+            "ui-erm-comparisons."
+        ],
+        "exact": [
+            "content.enrichment.enabled"
+        ]
+    },
+    {
+        "name": "Data & Analytics",
+        "prefixes": [
+            "ui-data-import.",
+            "ui-data-export.",
+            "ui-export-manager.",
+            "ui-dashboard.",
+            "ui-plugin-create-inventory-records.",
+            "ui-analytics.",
+            "ui.analytics.",
+            "ui-ldp.",
+            "reports.",
+            "fqm.",
+            "ui-tenant-settings.data.",
+            "ui-tenant-settings.login.",
+            "ui-tenant-settings.email",
+            "ui-tenant-settings.portal.ingestor.folio.",
+            "ui-tenant-settings.portal.ingestor.marc.",
+            "ui-tenant-settings.portal.ingestor.records.",
+            "module.analytics.",
+            "settings.analytics.",
+            "settings.data-export.",
+            "ui-search."
+        ],
+        "exact": [
+            "reports.execute"
+        ]
+    },
+    {
+        "name": "Bulk Edit & Lists",
+        "prefixes": [
+            "ui-bulk-edit.",
+            "module.lists.",
+            "module.selections.",
+            "module.vote.",
+            "module.work-list.",
+            "ui-work-list.",
+            "ui-selections.",
+            "ui-votes.",
+            "settings.selections.",
+            "settings.work-list."
+        ],
+        "exact": [
+            "user-import.all",
+            "smart-cataloger.all"
+        ]
+    },
+    {
+        "name": "Administration & Settings",
+        "prefixes": [
+            "ui-tenant-settings.",
+            "ui-developer.",
+            "settings.",
+            "module.service-interaction.",
+            "ui-remote-storage.",
+            "ui-medad-ai.",
+            "ui-medad-translations.",
+            "ui-oai-pmh."
+        ],
+        "exact": [
+            "login-saml.all",
+            "login-saml.configuration.put",
+            "login-saml.configuration.get"
+        ]
+    }
+]
+
+PERMISSION_SET_ALL_PERMISSIONS = _normalize_permissions(
+    ast.literal_eval(PERMISSION_SET_NASEEJ_PERMISSIONS_RAW)
+)
+
+
+def _collect_group_permissions(all_permissions):
+    assigned = set()
+    grouped = []
+    for group in PERMISSION_GROUP_DEFINITIONS:
+        prefixes = group.get("prefixes", [])
+        exact = set(group.get("exact", []))
+        matches = []
+        for perm in all_permissions:
+            if perm in assigned:
+                continue
+            if any(perm.startswith(prefix) for prefix in prefixes) or perm in exact:
+                matches.append(perm)
+        matches = _normalize_permissions(matches)
+        if matches:
+            assigned.update(matches)
+            grouped.append((group["name"], matches))
+    return grouped
+
+
+def _build_permission_set_definitions(all_permissions):
+    definitions = [
+        {
+            "id": "33f7b4fe-990f-487a-8450-fd68833b4438",
+            "displayName": "Naseej",
+            "mutable": True,
+            "subPermissions": all_permissions
+        }
+    ]
+
+    for name, perms in _collect_group_permissions(all_permissions):
+        definitions.append(
+            {
+                "id": str(uuid.uuid5(PERMISSION_SET_UUID_NAMESPACE, name.lower())),
+                "displayName": f"{name} (Full Access)",
+                "mutable": True,
+                "subPermissions": perms
+            }
+        )
+
+    return definitions
+
+
+PERMISSION_SET_DEFINITIONS = _build_permission_set_definitions(PERMISSION_SET_ALL_PERMISSIONS)
+
 
 # Set logging to WARNING level to suppress debug output
 logging.basicConfig(level=logging.WARNING)
@@ -24012,6 +24868,111 @@ async def ensure_marc_templates():
         return True, " | ".join(messages)
 
     return True, "Templates already present"
+
+
+async def ensure_permission_sets():
+    tenant, okapi, token = _get_connection_details()
+    if not tenant:
+        return False, "Missing tenant info"
+
+    headers = {
+        "x-okapi-tenant": tenant,
+        "x-okapi-token": token,
+        "Content-Type": "application/json"
+    }
+
+    created_sets = []
+    updated_sets = []
+
+    for definition in PERMISSION_SET_DEFINITIONS:
+        payload = {
+            "id": definition["id"],
+            "displayName": definition.get("displayName", definition["id"]),
+            "mutable": definition.get("mutable", True),
+            "subPermissions": _normalize_permissions(definition.get("subPermissions", []))
+        }
+
+        perm_id = payload["id"]
+
+        try:
+            existing_resp = requests.get(
+                f"{okapi}/perms/permissions/{perm_id}",
+                headers=headers,
+                timeout=DEFAULT_TIMEOUT
+            )
+        except Exception as exc:
+            logging.error("Failed to fetch permission set %s: %s", perm_id, exc)
+            return False, f"Permission set fetch failed: {exc}"
+
+        if existing_resp.status_code == 404:
+            try:
+                search_resp = requests.get(
+                    f"{okapi}/perms/permissions?query=(displayName==\"{payload['displayName']}\")",
+                    headers=headers,
+                    timeout=DEFAULT_TIMEOUT
+                )
+                if search_resp.status_code == 200:
+                    results = search_resp.json()
+                    permissions = results.get("permissions") if isinstance(results, dict) else []
+                    if permissions:
+                        perm_id = permissions[0].get("id", perm_id)
+                        payload["id"] = perm_id
+                        existing_resp = requests.get(
+                            f"{okapi}/perms/permissions/{perm_id}",
+                            headers=headers,
+                            timeout=DEFAULT_TIMEOUT
+                        )
+            except Exception:
+                pass
+
+        if existing_resp.status_code == 200:
+            existing = existing_resp.json()
+            existing_perms = _normalize_permissions(existing.get("subPermissions", []))
+            existing_display = existing.get("displayName", "")
+
+            if existing_display != payload["displayName"] or existing_perms != payload["subPermissions"]:
+                try:
+                    response = requests.put(
+                        f"{okapi}/perms/permissions/{perm_id}",
+                        headers=headers,
+                        data=json.dumps(payload),
+                        timeout=DEFAULT_TIMEOUT
+                    )
+                    response.raise_for_status()
+                    updated_sets.append(payload["displayName"])
+                except Exception as exc:
+                    logging.error("Failed to update permission set %s: %s", payload["displayName"], exc)
+                    return False, f"Permission set update failed: {exc}"
+        elif existing_resp.status_code == 404:
+            try:
+                response = requests.post(
+                    f"{okapi}/perms/permissions",
+                    headers=headers,
+                    data=json.dumps(payload),
+                    timeout=DEFAULT_TIMEOUT
+                )
+                response.raise_for_status()
+                created_sets.append(payload["displayName"])
+            except Exception as exc:
+                logging.error("Failed to create permission set %s: %s", payload["displayName"], exc)
+                return False, f"Permission set creation failed: {exc}"
+        else:
+            logging.error(
+                "Unexpected response fetching permission set %s: %s - %s",
+                payload["displayName"],
+                existing_resp.status_code,
+                existing_resp.text[:200]
+            )
+            return False, f"Permission set fetch HTTP {existing_resp.status_code}"
+
+    messages = []
+    if created_sets:
+        messages.append(f"Created: {', '.join(sorted(created_sets))}")
+    if updated_sets:
+        messages.append(f"Updated: {', '.join(sorted(updated_sets))}")
+    if not messages:
+        return True, "Permission sets already present"
+    return True, " | ".join(messages)
 
 
 async def default_job_profile():
