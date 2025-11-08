@@ -23590,9 +23590,18 @@ def _normalize_encoding(value):
     return value
 
 
+def _is_dspace_template(template: dict) -> bool:
+    title = template.get("title") or template.get("name")
+    if isinstance(title, str):
+        return title.strip().upper().startswith("DSPACE_")
+    return False
+
+
 def _get_normalized_templates():
     normalized = []
     for template in MARC_TEMPLATE_DEFINITIONS:
+        if _is_dspace_template(template):
+            continue
         normalized.append(_normalize_encoding(copy.deepcopy(template)))
     return normalized
 
