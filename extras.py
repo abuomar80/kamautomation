@@ -23662,6 +23662,79 @@ def _collect_doc_permissions() -> Set[str]:
     return collected
 
 
+USER_MANAGEMENT_AND_CIRCULATION_PERMISSIONS = [
+    "user-import.all",
+    "ui-users.overrideItemBlock",
+    "ui-users.overridePatronBlock",
+    "ui-users.editperms",
+    "ui-users.edituserservicepoints",
+    "ui-users.opentransactions",
+    "ui-users.create",
+    "ui-users.feesfines.actions.all",
+    "ui-users.patron_blocks",
+    "ui-users.editproxies",
+    "ui-users.delete",
+    "ui-users.edit",
+    "ui-users.lost-items.requiring-actual-cost",
+    "ui-users.feesfines.view",
+    "ui-users.viewperms",
+    "ui-users.profile-pictures.view",
+    "ui-users.viewproxies",
+    "ui-users.viewuserservicepoints",
+    "ui-users.profile-pictures.all",
+    "ui-users.cashDrawerReport",
+    "ui-users.financialTransactionReport",
+    "ui-users.manualProcessRefundsReport",
+    "ui-users.reset.password",
+    "ui-users.loans.anonymize",
+    "ui-users.loans.change-due-date",
+    "ui-users.loans.claim-item-returned",
+    "ui-users.loans.declare-item-lost",
+    "ui-users.loans.declare-claimed-returned-item-as-missing",
+    "ui-users.loans.renew",
+    "ui-users.loans.renew-override",
+    "ui-users.loans.view",
+    "ui-users.loans.all",
+    "ui-users.loans.add-staff-info",
+    "ui-users.loans.add-patron-info",
+    "ui-users.remove-patron-notice-print-jobs",
+    "ui-users.view-patron-notice-print-jobs",
+    "ui-users.view",
+    "ui-users.requests.all",
+    "ui-checkin.all",
+    "ui-checkout.all",
+    "ui-checkout.circulation",
+    "ui-checkout.viewFeeFines",
+    "ui-checkout.viewLoans",
+    "ui-checkout.viewRequests",
+    "ui-circulation-log.log-event.all",
+    "ui-circulation-log.log-event.view",
+    "ui-courses.all",
+    "ui-courses.maintain-items",
+    "ui-courses.read-all",
+    "ui-courses.read-add-edit",
+    "ui-courses.maintain-settings",
+    "ui-courses.view-settings",
+    "ui-plugin-create-inventory-records.create",
+    "ui-inventory.instance.view",
+    "ui-requests.all",
+    "ui-requests.moveRequest",
+    "ui-requests.reorderQueue",
+    "ui-requests.view",
+    "ui-requests.create",
+    "ui-requests.edit",
+]
+
+
+PERMISSION_SET_CONFIGS = [
+    {
+        "displayName": "User Management and Circulation",
+        "slug": "user_management_and_circulation",
+        "permissions": USER_MANAGEMENT_AND_CIRCULATION_PERMISSIONS,
+    }
+]
+
+
 def _fetch_tenant_permission_names(okapi: str, headers: Dict[str, str]) -> Set[str]:
     permissions: Set[str] = set()
     limit = 1000
@@ -23735,30 +23808,49 @@ def _build_doc_permission_set_definitions(tenant_permissions: Set[str]):
         return []
 
     doc_permissions = _collect_doc_permissions()
-    matched_permissions = sorted(doc_permissions & tenant_permissions)
+    definitions: List[Dict[str, object]] = []
+    missing_in_tenant: Dict[str, List[str]] = {}
+    missing_in_docs: Dict[str, List[str]] = {}
 
-    if not matched_permissions:
-        return []
+    for config in PERMISSION_SET_CONFIGS:
+        configured_permissions = config.get("permissions", [])
+        if not configured_permissions:
+            continue
 
-    grouped: Dict[str, List[str]] = {}
-    for permission in matched_permissions:
-        prefix = permission.split(".", 1)[0] if "." in permission else permission
-        grouped.setdefault(prefix, []).append(permission)
+        available = []
+        tenant_missing = []
+        docs_missing = []
+        for permission in configured_permissions:
+            if permission not in doc_permissions:
+                docs_missing.append(permission)
+            if permission not in tenant_permissions:
+                tenant_missing.append(permission)
+                continue
+            available.append(permission)
 
-    definitions = []
-    for prefix in sorted(grouped):
-        sub_permissions = _normalize_permissions(sorted(grouped[prefix]))
+        if tenant_missing:
+            missing_in_tenant[config["displayName"]] = tenant_missing
+        if docs_missing:
+            missing_in_docs[config["displayName"]] = docs_missing
+        if not available:
+            continue
+
         definitions.append(
             {
-                "displayName": f"Docs - {prefix}",
-                "permissionName": _slugify_permission_name(f"docs {prefix}"),
+                "displayName": config["displayName"],
+                "permissionName": config.get("slug")
+                or _slugify_permission_name(config["displayName"]),
                 "mutable": True,
-                "subPermissions": sub_permissions,
+                "subPermissions": _normalize_permissions(sorted(available)),
             }
         )
 
     sip2_permissions = _normalize_permissions(
-        [perm for perm in SIP2_PERMISSION_SET_PERMISSIONS if perm in tenant_permissions]
+        [
+            perm
+            for perm in SIP2_PERMISSION_SET_PERMISSIONS
+            if perm in tenant_permissions
+        ]
     )
     if sip2_permissions:
         definitions.append(
@@ -23778,6 +23870,22 @@ def _build_doc_permission_set_definitions(tenant_permissions: Set[str]):
             "subPermissions": _normalize_permissions(sorted(tenant_permissions)),
         }
     )
+
+    if missing_in_tenant or missing_in_docs:
+        messages = []
+        if missing_in_tenant:
+            tenant_msgs = [
+                f"{name}: {', '.join(sorted(perms))}"
+                for name, perms in sorted(missing_in_tenant.items())
+            ]
+            messages.append(f"Missing in tenant -> {' | '.join(tenant_msgs)}")
+        if missing_in_docs:
+            docs_msgs = [
+                f"{name}: {', '.join(sorted(perms))}"
+                for name, perms in sorted(missing_in_docs.items())
+            ]
+            messages.append(f"Missing in docs -> {' | '.join(docs_msgs)}")
+        logging.warning("Permission set availability issues: %s", " || ".join(messages))
 
     return definitions
 
@@ -24598,10 +24706,6 @@ PERMISSION_GROUP_DEFINITIONS = [
         ]
     }
 ]
-
-PERMISSION_SET_ALL_PERMISSIONS = []
-PERMISSION_SET_DEFINITIONS = []
-
 
 # Set logging to WARNING level to suppress debug output
 logging.basicConfig(level=logging.WARNING)
