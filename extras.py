@@ -5,6 +5,8 @@ import re
 import uuid
 import copy
 import ast
+from pathlib import Path
+from typing import Dict, List, Set
 from urllib.parse import quote
 import streamlit as st
 from legacy_session_state import legacy_session_state
@@ -23626,6 +23628,148 @@ def _slugify_permission_name(label: str) -> str:
     return slug or "permission_set"
 
 
+DOC_PERMISSION_LISTS: List[List[str]] = [
+    fullperms,
+    apiperm,
+    sipperm,
+    circ,
+    Acquisition,
+    cataloging,
+    admins,
+    search,
+    sip,
+]
+
+
+def _collect_doc_permissions() -> Set[str]:
+    collected: Set[str] = set()
+    for permission_list in DOC_PERMISSION_LISTS:
+        for permission in permission_list:
+            if permission:
+                collected.add(permission.strip())
+    return collected
+
+
+def _fetch_tenant_permission_names(okapi: str, headers: Dict[str, str]) -> Set[str]:
+    permissions: Set[str] = set()
+    limit = 1000
+    offset = 0
+
+    while True:
+        try:
+            response = requests.get(
+                f"{okapi}/perms/permissions?limit={limit}&offset={offset}",
+                headers=headers,
+                timeout=DEFAULT_TIMEOUT,
+            )
+        except Exception as exc:
+            logging.error("Permission fetch failed at offset %s: %s", offset, exc)
+            break
+
+        if response.status_code != 200:
+            logging.error(
+                "Permission fetch HTTP %s: %s",
+                response.status_code,
+                response.text[:200],
+            )
+            break
+
+        payload = response.json() or {}
+        chunk = payload.get("permissions") or []
+        if not chunk:
+            break
+
+        for entry in chunk:
+            name = entry.get("permissionName")
+            if name:
+                permissions.add(name.strip())
+            for sub in entry.get("subPermissions") or []:
+                if sub:
+                    permissions.add(sub.strip())
+
+        if len(chunk) < limit:
+            break
+        offset += limit
+
+    return permissions
+
+
+def _load_permissions_from_snapshot() -> Set[str]:
+    snapshot_path = Path(__file__).resolve().parent / "perms.json"
+    if not snapshot_path.exists():
+        return set()
+
+    try:
+        with snapshot_path.open(encoding="utf-8") as snapshot_file:
+            payload = json.load(snapshot_file)
+    except Exception as exc:
+        logging.error("Failed to load permissions snapshot %s: %s", snapshot_path, exc)
+        return set()
+
+    permissions: Set[str] = set()
+    for entry in payload.get("permissions", []):
+        name = entry.get("permissionName")
+        if name:
+            permissions.add(name.strip())
+        for sub in entry.get("subPermissions") or []:
+            if sub:
+                permissions.add(sub.strip())
+
+    return permissions
+
+
+def _build_doc_permission_set_definitions(tenant_permissions: Set[str]):
+    if not tenant_permissions:
+        return []
+
+    doc_permissions = _collect_doc_permissions()
+    matched_permissions = sorted(doc_permissions & tenant_permissions)
+
+    if not matched_permissions:
+        return []
+
+    grouped: Dict[str, List[str]] = {}
+    for permission in matched_permissions:
+        prefix = permission.split(".", 1)[0] if "." in permission else permission
+        grouped.setdefault(prefix, []).append(permission)
+
+    definitions = []
+    for prefix in sorted(grouped):
+        sub_permissions = _normalize_permissions(sorted(grouped[prefix]))
+        definitions.append(
+            {
+                "displayName": f"Docs - {prefix}",
+                "permissionName": _slugify_permission_name(f"docs {prefix}"),
+                "mutable": True,
+                "subPermissions": sub_permissions,
+            }
+        )
+
+    sip2_permissions = _normalize_permissions(
+        [perm for perm in SIP2_PERMISSION_SET_PERMISSIONS if perm in tenant_permissions]
+    )
+    if sip2_permissions:
+        definitions.append(
+            {
+                "displayName": "SIP2 (Service Desk)",
+                "permissionName": _slugify_permission_name("docs sip2"),
+                "mutable": True,
+                "subPermissions": sip2_permissions,
+            }
+        )
+
+    definitions.append(
+        {
+            "displayName": "Naseej",
+            "permissionName": _slugify_permission_name("Naseej All Permissions"),
+            "mutable": True,
+            "subPermissions": _normalize_permissions(sorted(tenant_permissions)),
+        }
+    )
+
+    return definitions
+
+
 PERMISSION_SET_NASEEJ_PERMISSIONS_RAW = '''
 [
 "ui-bulk-edit.app-edit.users",
@@ -24443,70 +24587,8 @@ PERMISSION_GROUP_DEFINITIONS = [
     }
 ]
 
-PERMISSION_SET_ALL_PERMISSIONS = _normalize_permissions(
-    ast.literal_eval(PERMISSION_SET_NASEEJ_PERMISSIONS_RAW)
-)
-
-for backend_permission in SIP2_PERMISSION_SET_PERMISSIONS:
-    if backend_permission not in PERMISSION_SET_ALL_PERMISSIONS:
-        PERMISSION_SET_ALL_PERMISSIONS.append(backend_permission)
-
-
-def _collect_group_permissions(all_permissions):
-    assigned = set()
-    grouped = []
-    for group in PERMISSION_GROUP_DEFINITIONS:
-        prefixes = group.get("prefixes", [])
-        exact = set(group.get("exact", []))
-        matches = []
-        for perm in all_permissions:
-            if perm in assigned:
-                continue
-            if any(perm.startswith(prefix) for prefix in prefixes) or perm in exact:
-                matches.append(perm)
-        matches = _normalize_permissions(matches)
-        if matches:
-            assigned.update(matches)
-            grouped.append((group["name"], matches))
-    return grouped
-
-
-def _build_permission_set_definitions(all_permissions):
-    master_perm_name = _slugify_permission_name("Naseej All Permissions")
-    definitions = [
-        {
-            "displayName": "Naseej",
-            "permissionName": master_perm_name,
-            "mutable": True,
-            "subPermissions": all_permissions
-        }
-    ]
-
-    sip2_perm_name = _slugify_permission_name("Naseej SIP2 Service Desk")
-    definitions.append(
-        {
-            "displayName": "SIP2 (Service Desk)",
-            "permissionName": sip2_perm_name,
-            "mutable": True,
-            "subPermissions": SIP2_PERMISSION_SET_PERMISSIONS
-        }
-    )
-
-    for name, perms in _collect_group_permissions(all_permissions):
-        perm_name = _slugify_permission_name(f"Naseej {name} Full Access")
-        definitions.append(
-            {
-                "displayName": f"{name} (Full Access)",
-                "permissionName": perm_name,
-                "mutable": True,
-                "subPermissions": perms
-            }
-        )
-
-    return definitions
-
-
-PERMISSION_SET_DEFINITIONS = _build_permission_set_definitions(PERMISSION_SET_ALL_PERMISSIONS)
+PERMISSION_SET_ALL_PERMISSIONS = []
+PERMISSION_SET_DEFINITIONS = []
 
 
 # Set logging to WARNING level to suppress debug output
@@ -24930,7 +25012,19 @@ async def ensure_permission_sets():
     created_sets = []
     updated_sets = []
 
-    for definition in PERMISSION_SET_DEFINITIONS:
+    tenant_permissions = _fetch_tenant_permission_names(okapi, headers)
+    if not tenant_permissions:
+        tenant_permissions = _load_permissions_from_snapshot()
+
+    if not tenant_permissions:
+        logging.error("Unable to resolve tenant permissions from Okapi or local snapshot")
+        return False, "Unable to load tenant permissions"
+
+    permission_definitions = _build_doc_permission_set_definitions(tenant_permissions)
+    if not permission_definitions:
+        return False, "No matching permissions found for documentation lists"
+
+    for definition in permission_definitions:
         sub_permissions = _normalize_permissions(definition.get("subPermissions", []))
         payload = {
             "permissionName": definition["permissionName"],
