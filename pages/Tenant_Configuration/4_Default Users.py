@@ -1,6 +1,7 @@
 import streamlit as st
 import requests
 import json
+from typing import Dict, List, Optional
 from legacy_session_state import legacy_session_state
 import string
 import secrets
@@ -31,196 +32,302 @@ hide_menu_style = """
 st.markdown(hide_menu_style, unsafe_allow_html=True)
 
 
-def perm():
-    # Get tenant and okapi with fallback to copied keys
-    tenant = st.session_state.get('tenant') or st.session_state.get('tenant_name', '')
-    okapi = st.session_state.get('okapi') or st.session_state.get('okapi_url', '')
-    token = st.session_state.get('token')
-    
-    perm_sets = [
-        {"displayName": "Naseej", "description": "Naseej", "subPermissions": fullperms},
-        {"displayName": "UserAPI", "description": "User API", "subPermissions": apiperm},
-        {"displayName": "Circulation", "description": "Circulation Permissions", "subPermissions": circ},
-        {"displayName": "Cataloging", "description": "Cataloging Permissions", "subPermissions": cataloging},
-        {"displayName": "Acquisition", "description": "Acquisition Permissions", "subPermissions": Acquisition},
-        {"displayName": "admin", "description": "admin Permissions", "subPermissions": admins},
-        {"displayName": "search", "description": "Search Permissions", "subPermissions": search},
-        {"displayName": "SIP", "description": "SIP Permissions", "subPermissions": sip}
-    ]
-
-    headers = {
-        "x-okapi-tenant": tenant,
-        "x-okapi-token": token
-    }
-
-    for perm_set in perm_sets:
-        # Make a GET request to check if the permission set already exists
-        response = requests.get(
-            f"{okapi}/perms/permissions?query=(displayName=={perm_set['displayName']})",
-            headers=headers)
-
-        if len(response.content) == 47:  # Assuming the length 47 indicates the absence of the permission set
-            try:
-                # Post the permission set if it doesn't exist
-                perm_post = requests.post(f"{okapi}/perms/permissions", headers=headers,
-                              data=json.dumps(perm_set))
-                # st.write(perm_post.content)
-                # st.write(perm_post.status_code)
-            except requests.exceptions.RequestException as err:
-                st.write(f"Failed to post permission set '{perm_set['displayName']}': {err}")
-
 def generate_password(length=12):
     alphabet = string.ascii_letters + string.digits + string.punctuation
     password = ''.join(secrets.choice(alphabet) for i in range(length))
     return password
+def ensure_patron_group(okapi: str, headers: Dict[str, str]) -> str:
+    """Ensure Naseej patron group exists and return its id."""
+    group_query = {"query": '(group=="Naseej")'}
+    response = requests.get(f"{okapi}/groups", headers=headers, params=group_query)
+    response.raise_for_status()
+    data = response.json()
+    if data.get("usergroups"):
+        return data["usergroups"][0]["id"]
+
+    payload = {"group": "Naseej"}
+    create_resp = requests.post(f"{okapi}/groups", headers=headers, json=payload)
+    if create_resp.status_code not in (201, 422):
+        raise RuntimeError(f"Failed to create patron group: {create_resp.text}")
+
+    refresh = requests.get(f"{okapi}/groups", headers=headers, params=group_query)
+    refresh.raise_for_status()
+    groups = refresh.json().get("usergroups", [])
+    if not groups:
+        raise RuntimeError("Unable to retrieve Naseej patron group after creation.")
+    return groups[0]["id"]
 
 
+def ensure_permission_sets(okapi: str, headers: Dict[str, str]) -> Dict[str, str]:
+    """Ensure required permission sets exist; return mapping displayName -> id."""
+    combined_circ_user = sorted(set(circ + apiperm))
+    permission_templates = [
+        {"displayName": "Naseej", "description": "Naseej", "subPermissions": fullperms},
+        {
+            "displayName": "Circulation and User",
+            "description": "Circulation and user permission set",
+            "subPermissions": combined_circ_user,
+        },
+        {
+            "displayName": "SIP2 Permission Set",
+            "description": "SIP2 permissions",
+            "subPermissions": sip,
+        },
+    ]
 
-def create_user():
-    # Get tenant and okapi with fallback to copied keys
-    tenant = st.session_state.get('tenant') or st.session_state.get('tenant_name', '')
-    okapi = st.session_state.get('okapi') or st.session_state.get('okapi_url', '')
-    token = st.session_state.get('token')
-    headers = {"x-okapi-tenant": tenant, "x-okapi-token": token}
+    permission_ids: Dict[str, str] = {}
+    for template in permission_templates:
+        params = {"query": f'(displayName=="{template["displayName"]}")'}
+        response = requests.get(f"{okapi}/perms/permissions", headers=headers, params=params)
+        response.raise_for_status()
+        payload = response.json()
 
-    # All API url
-    group_url = f"{okapi}/groups"
+        if not payload.get("permissions"):
+            create_resp = requests.post(f"{okapi}/perms/permissions", headers=headers, json=template)
+            if create_resp.status_code not in (201, 422):
+                raise RuntimeError(
+                    f"Failed to create permission set {template['displayName']}: {create_resp.text}"
+                )
+            response = requests.get(f"{okapi}/perms/permissions", headers=headers, params=params)
+            response.raise_for_status()
+            payload = response.json()
+
+        perms = payload.get("permissions") or []
+        if not perms:
+            raise RuntimeError(f"Permission set {template['displayName']} not found after creation.")
+        permission_ids[template["displayName"]] = perms[0]["id"]
+
+    return permission_ids
+
+
+def get_permission_user_record(okapi: str, headers: Dict[str, str], user_id: str) -> Optional[Dict]:
+    params = {"query": f'(userId=="{user_id}")'}
+    response = requests.get(f"{okapi}/perms/users", headers=headers, params=params)
+    response.raise_for_status()
+    data = response.json()
+    records = data.get("permissionUsers") or []
+    return records[0] if records else None
+
+
+def assign_permission_to_user(okapi: str, headers: Dict[str, str], user_id: str, permission_id: str) -> None:
+    existing = get_permission_user_record(okapi, headers, user_id)
+    if existing:
+        permissions = set(existing.get("permissions") or [])
+        if permission_id not in permissions:
+            permissions.add(permission_id)
+            existing["permissions"] = list(permissions)
+            update = requests.put(
+                f"{okapi}/perms/users/{existing['id']}",
+                headers=headers,
+                json=existing,
+            )
+            update.raise_for_status()
+    else:
+        payload = {"userId": user_id, "permissions": [permission_id]}
+        response = requests.post(f"{okapi}/perms/users", headers=headers, json=payload)
+        response.raise_for_status()
+
+
+def set_preferred_service_point(okapi: str, headers: Dict[str, str], user_id: str) -> None:
+    params = {"query": 'name=="Online"'}
+    response = requests.get(f"{okapi}/service-points", headers=headers, params=params)
+    response.raise_for_status()
+    points = response.json().get("servicepoints") or []
+    if not points:
+        return
+
+    service_point_id = points[0]["id"]
+    sp_payload = {
+        "userId": user_id,
+        "servicePointsIds": [service_point_id],
+        "defaultServicePointId": service_point_id,
+    }
+
+    params = {"query": f'(userId=="{user_id}")'}
+    existing_resp = requests.get(f"{okapi}/service-points-users", headers=headers, params=params)
+    existing_resp.raise_for_status()
+    records = existing_resp.json().get("servicePointsUsers") or []
+
+    if records:
+        record_id = records[0]["id"]
+        sp_payload["id"] = record_id
+        update = requests.put(
+            f"{okapi}/service-points-users/{record_id}", headers=headers, json=sp_payload
+        )
+        if update.status_code not in (200, 204):
+            st.warning(f"Failed to update service point for {user_id}: {update.text}")
+    else:
+        create = requests.post(f"{okapi}/service-points-users", headers=headers, json=sp_payload)
+        if create.status_code not in (201, 204):
+            st.warning(f"Failed to assign service point for {user_id}: {create.text}")
+
+
+def send_user_creation_email(tenant: str, results: List[Dict[str, str]]) -> None:
+    if not results:
+        return
+
+    tenant_upper = tenant.upper() if tenant else "UNKNOWN"
+    subject = f"{tenant_upper} - User Creation Summary"
+    sender_email = "ilsconfigration@gmail.com"
+    sender_password = "pmgargvvawxpltow"
+    receiver_email = "ilsconfigration@gmail.com"
+
+    lines = []
+    for entry in results:
+        password_info = entry.get("password") or "N/A"
+        status = entry.get("status", "unknown").upper()
+        detail = entry.get("message", "")
+        lines.append(f"{entry['username']}: {status} (password: {password_info}) {detail}")
+
+    body = "\n".join(lines) or "No users were processed."
+
+    try:
+        from email.mime.text import MIMEText
+        from email.mime.multipart import MIMEMultipart
+        import smtplib
+
+        message = MIMEMultipart()
+        message["From"] = sender_email
+        message["To"] = receiver_email
+        message["Subject"] = subject
+        message.attach(MIMEText(body, "plain"))
+
+        server = smtplib.SMTP("smtp.gmail.com", 587)
+        server.set_debuglevel(0)
+        server.starttls()
+        server.login(sender_email, sender_password)
+        server.sendmail(sender_email, receiver_email, message.as_string())
+        server.quit()
+    except Exception as exc:
+        st.warning(f"Unable to send notification email: {exc}")
+
+
+def resolve_permission_display_name(username: str, tenant: str) -> str:
+    if username.startswith("sip_"):
+        return "SIP2 Permission Set"
+    naseej_users = {"portal_integration", "kam_admin", "helpdesk_admin", "data_migration"}
+    if username in naseej_users:
+        return "Naseej"
+    if username == "api_user":
+        return "Circulation and User"
+    # default fallback
+    return "Naseej"
+
+
+def create_users(selected_users: List[str]):
+    if not selected_users:
+        return
+
+    tenant = st.session_state.get("tenant") or st.session_state.get("tenant_name", "")
+    okapi = st.session_state.get("okapi") or st.session_state.get("okapi_url", "")
+    token = st.session_state.get("token")
+
+    if not (tenant and okapi and token):
+        st.error("Tenant connection details are missing.")
+        return
+
+    base_headers = {"x-okapi-tenant": tenant, "x-okapi-token": token}
+    try:
+        group_id = ensure_patron_group(okapi, base_headers)
+        permission_ids = ensure_permission_sets(okapi, base_headers)
+    except Exception as exc:
+        st.error(f"Failed to prepare prerequisites: {exc}")
+        return
+
     users_url = f"{okapi}/users"
     password_url = f"{okapi}/authn/credentials"
-    permission_link = f"{okapi}/perms/users?full=true&indexField=userId"
-    permissions_url1 = f"{okapi}/perms/permissions?query=(displayName==Naseej)"
-    permissions_url2 = f"{okapi}/perms/permissions?query=(displayName==UserAPI)"
-    permissions_url3 = f"{okapi}/perms/permissions?query=(displayName==SIP)"
-    online_service_point = f'{okapi}/service-points?query=name==Online'
+    results: List[Dict[str, str]] = []
 
+    for username in selected_users:
+        resolved_permission = resolve_permission_display_name(username, tenant)
+        permission_id = permission_ids.get(resolved_permission)
 
-    # GET SERVICE POINT ONLINE ID
-    online_res = requests.get(f'{online_service_point}', headers=headers).json()
+        if not permission_id:
+            msg = f"Permission set '{resolved_permission}' not found."
+            st.error(msg)
+            results.append({"username": username, "status": "failed", "message": msg})
+            continue
 
-    # Create patron group and get its ID
-    data = {
-        "group": "Naseej"
-    }
-    requests.post(group_url, headers=headers, data=json.dumps(data))
+        user_record = {
+            "username": username,
+            "patronGroup": group_id,
+            "active": True,
+            "personal": {
+                "lastName": username,
+                "email": f"{username}@example.com",
+                "addresses": [],
+                "preferredContactTypeId": "002",
+            },
+        }
 
-    response = requests.get(group_url + r"?query=(group==Naseej)", headers=headers).json()
-    if response['usergroups']:
-        group_id = response["usergroups"][0]["id"]
+        try:
+            existing = requests.get(
+                users_url,
+                headers=base_headers,
+                params={"query": f'(username=="{username}")'},
+            )
+            existing.raise_for_status()
+            existing_users = existing.json().get("users") or []
 
-    SIPuser_id = ''
-    admin_id = ''
-    APIuser_id = ''
+            if existing_users:
+                user_id = existing_users[0]["id"]
+                assign_permission_to_user(okapi, base_headers, user_id, permission_id)
+                set_preferred_service_point(okapi, base_headers, user_id)
+                message = "User already existed; ensured permission assignment."
+                st.info(f"{username}: {message}")
+                results.append(
+                    {"username": username, "status": "exists", "message": message}
+                )
+                continue
 
-    # Get id of admin permission set
-    permission_Admin_res = requests.get(permissions_url1, headers=headers).json()
-    if permission_Admin_res['permissions']:
-        admin_id = permission_Admin_res['permissions'][0]["id"]
+            create_resp = requests.post(users_url, headers=base_headers, json=user_record)
+            if create_resp.status_code not in (201, 200):
+                error_text = create_resp.text
+                st.error(f"Failed to create {username}: {error_text}")
+                results.append(
+                    {"username": username, "status": "failed", "message": error_text}
+                )
+                continue
 
+            fetch = requests.get(
+                users_url,
+                headers=base_headers,
+                params={"query": f'(username=="{username}")'},
+            )
+            fetch.raise_for_status()
+            new_user = fetch.json().get("users")[0]
+            user_id = new_user["id"]
 
-    # Get id of API_User
-    permission_user_res = requests.get(permissions_url2, headers=headers).json()
-    if permission_user_res['permissions']:
-        APIuser_id = permission_user_res['permissions'][0]["id"]
+            password = generate_password()
+            password_payload = {"username": username, "password": password, "userId": user_id}
+            password_resp = requests.post(password_url, headers=base_headers, json=password_payload)
+            password_resp.raise_for_status()
 
-    # Get id of API_User
-    permission_sip_res = requests.get(permissions_url3, headers=headers).json()
+            assign_permission_to_user(okapi, base_headers, user_id, permission_id)
+            set_preferred_service_point(okapi, base_headers, user_id)
 
-    if permission_sip_res['permissions']:
-        SIPuser_id = permission_sip_res['permissions'][0]["id"]
-
-    if APIuser_id == '' or admin_id == '' or SIPuser_id == '':
-        st.warning("One of permission sets (Naseej, UserAPI, SIP) is not created. Please check tenant.")
-    else:
-        for i in range(0, len(options)):
-            username = options[i]
-            # user data
-            user_data = {
-                "username": username,
-                "patronGroup": group_id,
-                "active": True,
-                "personal": {
-                    "lastName": username,
-                    "email": username,
-                    "addresses": [],
-                    "preferredContactTypeId": "002"
-                }
-            }
-
-            # Post user (create user)
-
-            create_user_res1 = requests.post(users_url, data=json.dumps(user_data), headers=headers)
-            # st.write(create_user_res1)
-
-            #if username exists
-            if "username already exists" in str(create_user_res1.content):
-                st.warning("Username ("+username+") already exists.")
-            elif create_user_res1.status_code == 400:
-                st.warning("Bad request")
-            elif create_user_res1.status_code == 401:
-                st.warning("unable to create users -- unauthorized")
-            elif create_user_res1.status_code == 422:
-                msg = create_user_res1.json()
-                msg = msg["errors"]["message"]
-                st.warning(msg)
-            elif create_user_res1.status_code == 500:
-                st.warning("Internal server error, contact administrator.")
-            else:
-                #if no errors found
-
-                # Get user id
-                create_user_res = requests.get(users_url + f"?query=(username =={username})", headers=headers).json()
-                user_id = create_user_res["users"][0]["id"]
-
-                random_password = generate_password()
-                # create user password
-                password_data = {
+            st.success(f"User ({username}) created. Password: {password}")
+            results.append(
+                {
                     "username": username,
-                    "password": random_password,
-                    "userId": user_id
+                    "status": "created",
+                    "password": password,
+                    "message": f"Assigned permission set '{resolved_permission}'.",
                 }
+            )
 
-                if username.__eq__("kam_admin") or username.__eq__("helpdesk_admin") or username.__eq__("portal_integration") or username.__eq__("data_migration_user"):
-                    perm_data = {
-                        "userId": user_id,
-                        "permissions": [admin_id]
-                    }
-                # elif username.__eq__("portal_integration"):
-                #     perm_data = {
-                #         "userId": user_id,
-                #         "permissions": []
-                #     }
-                elif username.__eq__(f"sip_{tenant}"):
-                    perm_data = {
-                        "userId": user_id,
-                        "permissions": [SIPuser_id]
-                    }
-                else:
-                    perm_data = {
-                        "userId": user_id,
-                        "permissions": [APIuser_id]
-                    }
-                # Add permissions
-                requests.post(permission_link, headers=headers, data=json.dumps(perm_data))
+        except requests.HTTPError as http_err:
+            st.error(f"HTTP error for {username}: {http_err}")
+            results.append(
+                {"username": username, "status": "failed", "message": str(http_err)}
+            )
+        except Exception as exc:
+            st.error(f"Unexpected error for {username}: {exc}")
+            results.append(
+                {"username": username, "status": "failed", "message": str(exc)}
+            )
 
-                # Add preferred service point
-                # Get service point ID for portal_integration user
-                if online_res['servicepoints']:
-                    portal_point_id = online_res['servicepoints'][0]['id']
-                    # print(portal_point_id)
-
-                    preferred_sp_data = {
-                        "userId": user_id,
-                        "servicePointsIds": [portal_point_id],
-                        "defaultServicePointId": portal_point_id
-                    }
-                    post_service_point = requests.post(f'{okapi}/service-points-users', headers=headers,
-                                                       data=json.dumps(preferred_sp_data))
-                    # st.write(post_service_point.content)
-                    # st.write(post_service_point.status_code)
-                # Add password to user
-                pwdd = requests.post(password_url, headers=headers, data=json.dumps(password_data))
-                # st.write(pwdd.content)
-                st.success(f"User ({username}) have been created! password : {random_password}", icon="✅")
+    send_user_creation_email(tenant, results)
 
 st.title("User Creation")
 if st.session_state.allow_tenant:
@@ -228,7 +335,7 @@ if st.session_state.allow_tenant:
     tenant_name = st.session_state.get('tenant') or st.session_state.get('tenant_name', '')
     
     # Build user options list
-    user_options = ['portal_integration', 'kam_admin', 'helpdesk_admin', 'data_migration_user', 'api_user']
+    user_options = ['portal_integration', 'kam_admin', 'helpdesk_admin', 'data_migration', 'api_user']
     if tenant_name:
         user_options.append(f'sip_{tenant_name}')
     
@@ -241,7 +348,6 @@ if st.session_state.allow_tenant:
     create_clicked = st.button("Create users", type="primary", use_container_width=False, disabled=len(options) == 0)
 
     if create_clicked:
-        perm()
-        create_user()
+        create_users(options)
 else:
     st.warning("Please Connect to Tenant First.")
