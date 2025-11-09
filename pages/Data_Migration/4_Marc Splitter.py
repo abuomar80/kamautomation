@@ -2,13 +2,8 @@ import streamlit as st
 import csv
 from pymarc import MARCReader
 from io import BytesIO, StringIO
-from data_migration_login import render_login_form
-
-# Data Migration Page - Requires separate login
+# Data Migration Page - No tenant login required for MARC splitter
 # Note: st.set_page_config() is removed as it's already set in Homepage.py
-
-# Render login form and get connection status
-connected, okapi_url, tenant_id, token, headers, _, _ = render_login_form(page_key_prefix="marc")
 
 def process_marc_file(uploaded_file, marc_tag):
     sequence = 1000  # Starting sequence
@@ -81,15 +76,15 @@ def main():
 
 if __name__ == "__main__":
     st.title("MARC Record Splitter")
-    
-    st.markdown("""**This App is used to split MARC records by tag number.**
-    
-    Upload a MARC file and specify the tag number to split by.
-    The tool will create a TSV file with the split data.
-    """, unsafe_allow_html=True)
-    
-    if connected:
-        st.divider()
-        main()
-    else:
-        st.info("👆 Please login to your tenant above to access the MARC Splitter tool.")
+
+    st.markdown(
+        """**This App is used to split MARC records by tag number.**
+
+Upload a MARC file and specify the tag number to split by.
+The tool will create a TSV file with the split data.
+""",
+        unsafe_allow_html=True,
+    )
+
+    st.divider()
+    main()
