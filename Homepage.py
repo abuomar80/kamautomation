@@ -1,5 +1,6 @@
 import streamlit as st
 import streamlit_authenticator as stauth
+from PIL import Image
 import yaml
 from yaml import SafeLoader
 # Note: legacy_session_state is NOT called here to avoid conflicts with authenticator form
@@ -12,6 +13,7 @@ st.set_page_config(
 with open('authentication.yaml') as file:
     config = yaml.load(file, Loader=SafeLoader)
 
+logo_image = Image.open("medad_logo_eng.png")
 authenticator = stauth.Authenticate(
     config['credentials'],
     config['cookie']['name'],
@@ -24,9 +26,7 @@ authenticator = stauth.Authenticate(
 # Try the local version's approach first, then fallback
 try:
     if st.session_state.get('authentication_status') is not True:
-        from PIL import Image
-        logo = Image.open("medad_logo_eng.png")
-        st.image(logo, width=200)
+        st.image(logo_image, width=200)
         st.markdown("<h1 style='text-align:center;margin-top:0;'>Medad Automation Tools</h1>", unsafe_allow_html=True)
     authenticator.login(location='main', key='Login')
 except (TypeError, AttributeError):
@@ -75,6 +75,7 @@ if authentication_status:
         },
     }
     
+    st.sidebar.image(logo_image, use_column_width=True)
     st.sidebar.markdown("## 📋 Navigation")
     st.sidebar.markdown("---")
     
