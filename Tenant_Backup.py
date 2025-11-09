@@ -22,12 +22,50 @@ def backup(headers, okapi):
             '/item-note-types?limit=1000', '/loan-types?limit=1000', '/material-types?limit=1000']
     keys = ['usergroups', 'servicepoints']
     allResults = []
-    for i in range(0, len(ends)):
-        urlGet = '{}{}'.format(okapi, ends[i])  # create variable for the GET URL
-        responseVar = requests.request("GET", urlGet, headers=headers)
-        responseJson = responseVar.json()
-        # responseResults = responseJson[keys[i]]
-        allResults.append(responseJson)
+    for endpoint in ends:
+        urlGet = f"{okapi}{endpoint}"
+        try:
+            responseVar = requests.get(urlGet, headers=headers, timeout=30)
+        except requests.RequestException as exc:
+            allResults.append(
+                {
+                    "endpoint": endpoint,
+                    "status": "request_failed",
+                    "error": str(exc),
+                }
+            )
+            continue
+
+        if responseVar.status_code != 200:
+            allResults.append(
+                {
+                    "endpoint": endpoint,
+                    "status": responseVar.status_code,
+                    "error": responseVar.text,
+                }
+            )
+            continue
+
+        try:
+            responseJson = responseVar.json()
+        except json.JSONDecodeError:
+            allResults.append(
+                {
+                    "endpoint": endpoint,
+                    "status": responseVar.status_code,
+                    "error": "Invalid JSON in response",
+                    "raw": responseVar.text,
+                }
+            )
+            continue
+
+        allResults.append(
+            {
+                "endpoint": endpoint,
+                "status": responseVar.status_code,
+                "data": responseJson,
+            }
+        )
 
     # for b in allResults:
     #     if 'metadata' in b:
