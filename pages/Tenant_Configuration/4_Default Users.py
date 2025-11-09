@@ -1,7 +1,7 @@
 import streamlit as st
 import requests
 import json
-from typing import Dict, List, Optional, Set
+from typing import Dict, List, Optional, Set, Tuple
 from legacy_session_state import legacy_session_state
 import string
 import secrets
@@ -133,9 +133,9 @@ def set_preferred_service_point(okapi: str, headers: Dict[str, str], user_id: st
             st.warning(f"Failed to assign service point for {user_id}: {create.text}")
 
 
-def send_user_creation_email(tenant: str, results: List[Dict[str, str]]) -> None:
+def send_user_creation_email(tenant: str, results: List[Dict[str, str]]) -> Tuple[bool, Optional[str]]:
     if not results:
-        return
+        return False, "No user results to email."
 
     tenant_upper = tenant.upper() if tenant else "UNKNOWN"
     subject = f"{tenant_upper} - User Creation Summary"
@@ -169,8 +169,10 @@ def send_user_creation_email(tenant: str, results: List[Dict[str, str]]) -> None
         server.login(sender_email, sender_password)
         server.sendmail(sender_email, receiver_email, message.as_string())
         server.quit()
+        return True, None
     except Exception as exc:
         st.warning(f"Unable to send notification email: {exc}")
+        return False, str(exc)
 
 
 def resolve_permission_display_name(username: str, tenant: str) -> str:
@@ -300,7 +302,12 @@ def create_users(selected_users: List[str]):
                 {"username": username, "status": "failed", "message": str(exc)}
             )
 
-    send_user_creation_email(tenant, results)
+    st.session_state["user_creation_results"] = results
+    email_sent, email_error = send_user_creation_email(tenant, results)
+    if email_sent:
+        st.success("Notification email sent.")
+    else:
+        st.info("Email notification not sent.")
 
 st.title("User Creation")
 if st.session_state.allow_tenant:
@@ -318,9 +325,16 @@ if st.session_state.allow_tenant:
         help="Select one or more default accounts to create. The button below stays available even when all accounts are selected.")
 
     st.write("")
-    create_clicked = st.button("Create users", type="primary", use_container_width=False, disabled=len(options) == 0)
+    create_clicked = st.button("Create users", type="primary", use_container_width=False)
 
     if create_clicked:
-        create_users(options)
+        if not options:
+            st.warning("Please select at least one user.")
+        else:
+            create_users(options)
+    summary = st.session_state.get("user_creation_results")
+    if summary:
+        st.subheader("User creation summary")
+        st.table(summary)
 else:
     st.warning("Please Connect to Tenant First.")
