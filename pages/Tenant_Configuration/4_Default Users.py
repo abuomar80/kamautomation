@@ -341,22 +341,22 @@ if st.session_state.allow_tenant:
     if tenant_name:
         user_options.append(f'sip_{tenant_name}')
 
-    with st.form("user_creation_form", clear_on_submit=False):
-        options = st.multiselect(
-            'Please choose users to create',
-            user_options,
-            help="Select one or more default accounts to create."
-        )
-        submitted = st.form_submit_button("Create users", use_container_width=False)
+    options = st.multiselect(
+        'Please choose users to create',
+        user_options,
+        help="Select one or more default accounts to create."
+    )
 
-    if submitted:
+    create_clicked = st.button("Create users", key="create_users_button", use_container_width=False)
+
+    if create_clicked:
         if not options:
             st.warning("Please select at least one user.")
         else:
             create_users(options)
 
     summary = st.session_state.get("user_creation_results")
-    if summary and len(summary) > 0:
+    if summary:
         st.subheader("User creation summary")
         st.table(summary)
 else:
