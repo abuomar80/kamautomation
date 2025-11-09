@@ -25,7 +25,7 @@ authenticator = stauth.Authenticate(
 try:
     if st.session_state.get('authentication_status') is not True:
         st.markdown("<h1 style='text-align: center;'>Medad Automation Tools</h1>", unsafe_allow_html=True)
-        st.image("Medad_logo.jpg", width=220)
+        st.image("medad_logo_eng.png", width=220)
     authenticator.login(location='main', key='Login')
 except (TypeError, AttributeError):
     # Fallback for different API versions
