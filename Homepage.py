@@ -24,8 +24,15 @@ authenticator = stauth.Authenticate(
 # Try the local version's approach first, then fallback
 try:
     if st.session_state.get('authentication_status') is not True:
-        st.markdown("<h1 style='text-align: center;'>Medad Automation Tools</h1>", unsafe_allow_html=True)
-        st.image("medad_logo_eng.png", width=220)
+        st.markdown(
+            """
+            <div style="display:flex;flex-direction:column;align-items:center;gap:12px;">
+                <img src="medad_logo_eng.png" width="200" style="margin:0 auto;" />
+                <h1 style="text-align:center;margin:0;">Medad Automation Tools</h1>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
     authenticator.login(location='main', key='Login')
 except (TypeError, AttributeError):
     # Fallback for different API versions
