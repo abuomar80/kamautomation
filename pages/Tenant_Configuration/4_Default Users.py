@@ -143,25 +143,44 @@ def send_user_creation_email(tenant: str, results: List[Dict[str, str]]) -> Tupl
     sender_password = "pmgargvvawxpltow"
     receiver_email = "ilsconfigration@gmail.com"
 
-    lines = []
+    table_rows = []
     for entry in results:
-        password_info = entry.get("password") or "N/A"
-        status = entry.get("status", "unknown").upper()
-        detail = entry.get("message", "")
-        lines.append(f"{entry['username']}: {status} (password: {password_info}) {detail}")
+        table_rows.append(
+            f"<tr>"
+            f"<td>{entry.get('username', '')}</td>"
+            f"<td>{entry.get('status', '').upper()}</td>"
+            f"<td>{entry.get('password', '') or ''}</td>"
+            f"<td>{entry.get('message', '')}</td>"
+            f"</tr>"
+        )
+    table_html = (
+        "<table border='1' cellpadding='6' cellspacing='0'>"
+        "<thead><tr>"
+        "<th>Username</th><th>Status</th><th>Password</th><th>Message</th>"
+        "</tr></thead><tbody>"
+        + "".join(table_rows)
+        + "</tbody></table>"
+    )
 
-    body = "\n".join(lines) or "No users were processed."
+    plain_lines = ["Username,Status,Password,Message"]
+    for entry in results:
+        password_value = entry.get("password", "") or ""
+        plain_lines.append(
+            f"{entry.get('username','')},{entry.get('status','')},{password_value},{entry.get('message','')}"
+        )
+    body_plain = "\n".join(plain_lines)
 
     try:
         from email.mime.text import MIMEText
         from email.mime.multipart import MIMEMultipart
         import smtplib
 
-        message = MIMEMultipart()
+        message = MIMEMultipart("alternative")
         message["From"] = sender_email
         message["To"] = receiver_email
         message["Subject"] = subject
-        message.attach(MIMEText(body, "plain"))
+        message.attach(MIMEText(body_plain, "plain"))
+        message.attach(MIMEText(table_html, "html"))
 
         server = smtplib.SMTP("smtp.gmail.com", 587)
         server.set_debuglevel(0)
@@ -325,7 +344,8 @@ if st.session_state.allow_tenant:
         help="Select one or more default accounts to create. The button below stays available even when all accounts are selected.")
 
     st.write("")
-    create_clicked = st.button("Create users", type="primary", use_container_width=False)
+    create_clicked_placeholder = st.empty()
+    create_clicked = create_clicked_placeholder.button("Create users", type="primary", use_container_width=False)
 
     if create_clicked:
         if not options:
