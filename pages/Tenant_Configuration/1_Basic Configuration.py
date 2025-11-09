@@ -39,7 +39,23 @@ if 'allow_tenant' not in st.session_state:
 # Initializing them to empty strings would overwrite existing values or hide connection issues
 
 st.subheader("Basic Tenant Configuration")
-st.caption("In order to start tenant configuration, kindly paste Medad ILS URL (ex: https://medad.ils.com) and click on start configuration button.")
+with st.expander("ℹ️ About Basic Configuration", expanded=False):
+    st.markdown(
+        """
+**Basic Configuration** prepares a tenant with all essential settings, notices, policies, and default data needed to get started quickly.
+
+### What this workflow does
+- Creates sample instance, holdings, and item records for validation.
+- Sets up core circulation policies (loan periods, overdue fines, lost item fees).
+- Configures patron notices and sends sample notices.
+- Loads key tenant settings (time zone, locale, currency, price notes, loan types).
+- Ensures default permission sets, job profiles, and MARC template support.
+- Adds required departments, identifier types, and authority source files.
+- Configures portal integrations (Medad, MARC, and item/holding).
+
+> Run this once per tenant after connecting on the **Tenant** page. Progress and results will be summarized after completion.
+"""
+    )
 
 if 'basic_config_summary' not in st.session_state:
     st.session_state['basic_config_summary'] = None
