@@ -41,9 +41,7 @@ def reset():
         del st.session_state['tenant_username']
 
 
-st.title("Medad Automation Tools")
-st.image("Medad_logo.jpg", width=200)
-st.markdown("### 🔐 Tenant Login")
+st.title("🔐 Tenant Login")
 st.caption('Connect to your tenant to start configuration. This session will be maintained across all Tenant Configuration pages.')
 
 # Use regular inputs instead of form to avoid widget key conflicts when page is loaded dynamically
