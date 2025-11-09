@@ -23,6 +23,8 @@ authenticator = stauth.Authenticate(
 # Login form - returns None when location is 'main', authentication info stored in session_state
 # Try the local version's approach first, then fallback
 try:
+    st.markdown("<h1 style='text-align: center;'>Medad Automation Tools</h1>", unsafe_allow_html=True)
+    st.image("Medad_logo.jpg", width=220)
     authenticator.login(location='main', key='Login')
 except (TypeError, AttributeError):
     # Fallback for different API versions
