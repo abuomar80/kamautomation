@@ -42,7 +42,13 @@ def reset():
 
 
 st.title("🔐 Tenant Login")
-st.caption('Connect to your tenant to start configuration. This session will be maintained across all Tenant Configuration pages.')
+st.markdown(
+    "Connect to the Tenant that you need to configure, ensuring that you are using the "
+    "<strong style='font-size:1.05em;'>automation user</strong> "
+    "(<u>NOT the SuperAdmin account provided via email</u>). "
+    "This session will remain active across all Tenant Configuration pages.",
+    unsafe_allow_html=True,
+)
 
 # Use regular inputs instead of form to avoid widget key conflicts when page is loaded dynamically
 st.text_input("Enter Tenant Username:", key="username_tenant", placeholder="Please enter your username")
