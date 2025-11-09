@@ -154,11 +154,17 @@ def send_user_creation_email(tenant: str, results: List[Dict[str, str]]) -> Tupl
             f"</tr>"
         )
     table_html = (
-        "<table border='1' cellpadding='6' cellspacing='0'>"
+        "<table style='border-collapse:collapse;width:100%;'>"
         "<thead><tr>"
-        "<th>Username</th><th>Status</th><th>Password</th><th>Message</th>"
+        "<th style='border:1px solid #ccc;padding:6px;text-align:left;'>Username</th>"
+        "<th style='border:1px solid #ccc;padding:6px;text-align:left;'>Status</th>"
+        "<th style='border:1px solid #ccc;padding:6px;text-align:left;'>Password</th>"
+        "<th style='border:1px solid #ccc;padding:6px;text-align:left;'>Message</th>"
         "</tr></thead><tbody>"
-        + "".join(table_rows)
+        + "".join(
+            row.replace("<td>", "<td style='border:1px solid #ccc;padding:6px;'>")
+            for row in table_rows
+        )
         + "</tbody></table>"
     )
 
@@ -330,30 +336,27 @@ def create_users(selected_users: List[str]):
 
 st.title("User Creation")
 if st.session_state.allow_tenant:
-    # Get tenant name with fallback
     tenant_name = st.session_state.get('tenant') or st.session_state.get('tenant_name', '')
-    
-    # Build user options list
     user_options = ['portal_integration', 'kam_admin', 'helpdesk_admin', 'data_migration', 'api_user']
     if tenant_name:
         user_options.append(f'sip_{tenant_name}')
-    
-    options = st.multiselect(
-        'Please choose users to create',
-        user_options,
-        help="Select one or more default accounts to create. The button below stays available even when all accounts are selected.")
 
-    st.write("")
-    create_clicked_placeholder = st.empty()
-    create_clicked = create_clicked_placeholder.button("Create users", type="primary", use_container_width=False)
+    with st.form("user_creation_form", clear_on_submit=False):
+        options = st.multiselect(
+            'Please choose users to create',
+            user_options,
+            help="Select one or more default accounts to create."
+        )
+        submitted = st.form_submit_button("Create users", use_container_width=False)
 
-    if create_clicked:
+    if submitted:
         if not options:
             st.warning("Please select at least one user.")
         else:
             create_users(options)
+
     summary = st.session_state.get("user_creation_results")
-    if summary:
+    if summary and len(summary) > 0:
         st.subheader("User creation summary")
         st.table(summary)
 else:
