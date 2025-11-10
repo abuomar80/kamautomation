@@ -59,7 +59,16 @@ def stat_types():
     # Strip leading and trailing whitespaces from "Medad" column
     df['Medad Statistical Code'] = df['Medad Statistical Code'].str.strip()
     df['Medad Statistical Type'] = df['Medad Statistical Type'].str.strip()
-    headers = {"x-okapi-tenant": f"{st.session_state.tenant}", "x-okapi-token": f"{st.session_state.token}"}
+    tenant = st.session_state.get("tenant") or st.session_state.get("tenant_name")
+    token = st.session_state.get("token")
+    okapi = st.session_state.get("okapi") or st.session_state.get("okapi_url")
+
+    if not all([tenant, token, okapi]):
+        st.error("⚠️ Tenant connection information is missing. Please connect to a tenant first.")
+        st.info("Go to the Tenant page, enter connection details, click Connect, then return here.")
+        return
+
+    headers = {"x-okapi-tenant": tenant, "x-okapi-token": token}
     # GET request to get current material types
     response = requests.get(f"{st.session_state.okapi}/statistical-code-types", headers=headers).json()
     df_stypes = json_normalize(response['statisticalCodeTypes'])

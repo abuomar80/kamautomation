@@ -148,9 +148,29 @@ def loc():
                         inst_id = locations_inst[key][i]
 
                         # GET LIBRARY ID
-                        res = requests.get(f'{st.session_state.okapi}/location-units/libraries?query=(name=={locations_lib[key][i]})',
-                                           headers=headers).json()
-                        lib_ID = res['loclibs'][0]['id']
+                        res = requests.get(
+                            f'{st.session_state.okapi}/location-units/libraries?query=(name=={locations_lib[key][i]})',
+                            headers=headers,
+                        ).json()
+                        libraries = res.get("loclibs") or []
+                        if not libraries:
+                            warn = (
+                                f"❌ No library found for name '{locations_lib[key][i]}'. "
+                                "Skipping this location entry."
+                            )
+                            st.warning(warn)
+                            error_messages.append(warn)
+                            continue
+
+                        lib_ID = libraries[0].get("id")
+                        if not lib_ID:
+                            warn = (
+                                f"❌ Library record for '{locations_lib[key][i]}' is missing an ID. "
+                                "Skipping this location entry."
+                            )
+                            st.warning(warn)
+                            error_messages.append(warn)
+                            continue
 
                         success, error_msg = create_locations(key, code, key, inst_id, camp_id, lib_ID, locations[key][0], locations[key])
                         if not success and error_msg:
