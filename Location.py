@@ -106,7 +106,25 @@ def loc():
                         f'{st.session_state.okapi}/service-points?query=(name=={row["ServicePoints name"]})',
                         headers=headers).json()
 
-                    spid = result['servicepoints'][0]['id']
+                    servicepoints = result.get('servicepoints') or []
+                    if not servicepoints:
+                        warning_msg = (
+                            f"❌ No service point found for name '{row['ServicePoints name']}'. "
+                            "Skipping this location entry."
+                        )
+                        st.warning(warning_msg)
+                        error_messages.append(warning_msg)
+                        continue
+
+                    spid = servicepoints[0].get('id')
+                    if not spid:
+                        warning_msg = (
+                            f"❌ Service point '{row['ServicePoints name']}' is missing an ID. "
+                            "Skipping this location entry."
+                        )
+                        st.warning(warning_msg)
+                        error_messages.append(warning_msg)
+                        continue
                     if locations.get(row['LocationsName']) is not None:
                         locations_code[row['LocationsName']].append(row['LocationsCodes'])
                         locations_lib[row['LocationsName']].append(row['LibrariesName'])
