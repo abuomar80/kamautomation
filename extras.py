@@ -74,8 +74,8 @@ MARC_TEMPLATES_JSON = r'''[
   {
     "module": "MARC_AUTHORITY_EDITOR",
     "id": "62c0a66a-1f8e-4b4d-bfd8-8b58f0831500",
-    "title": "AUTHROTY-RDA-2015 - AUC-TEMP-PERSON-PORTAL",
-    "description": "AUC-TEMP-PERSON-PORTAL",
+    "title": "Personal Name (100) - اسم الشخص (100)",
+    "description": "This is the template for personal names. هذا هو نموذج الأسماء الشخصية ",
     "content": {
       "fields": [
         {
@@ -128,7 +128,7 @@ MARC_TEMPLATES_JSON = r'''[
         },
         {
           "tag": "040",
-          "content": "$a SA-RiAUC $b ara $c SA-RiAUC $f aucnm $e rda",
+          "content": "$a $b ara $c $e $f ",
           "indicators": [
             "\\",
             "\\"
@@ -152,7 +152,7 @@ MARC_TEMPLATES_JSON = r'''[
         },
         {
           "tag": "075",
-          "content": "$a Ø§Ø³Ù Ø´Ø®Øµâªâªâª $b nm $2 auce",
+          "content": "$a  اسم شخص $b nm $2 ",
           "indicators": [
             "\\",
             "\\"
@@ -176,7 +176,7 @@ MARC_TEMPLATES_JSON = r'''[
         },
         {
           "tag": "370",
-          "content": "$a : $b : $2 aucsh",
+          "content": "$a : $b : $2 ",
           "indicators": [
             "\\",
             "\\"
@@ -187,20 +187,8 @@ MARC_TEMPLATES_JSON = r'''[
           "_isLinked": false
         },
         {
-          "tag": "371",
-          "content": "$a : $b : $c : $d : $e : $m : $u : $z :",
-          "indicators": [
-            "\\",
-            "\\"
-          ],
-          "isProtected": false,
-          "id": "bfcf2cdd-ef48-4b70-937d-4cad4f5c4b38",
-          "_isDeleted": false,
-          "_isLinked": false
-        },
-        {
           "tag": "372",
-          "content": "$a : $2 aucsh",
+          "content": "$a : $2 ",
           "indicators": [
             "\\",
             "\\"
@@ -212,7 +200,7 @@ MARC_TEMPLATES_JSON = r'''[
         },
         {
           "tag": "373",
-          "content": "$a : $2 aucnm",
+          "content": "$a : $2 ",
           "indicators": [
             "\\",
             "\\"
@@ -224,7 +212,7 @@ MARC_TEMPLATES_JSON = r'''[
         },
         {
           "tag": "374",
-          "content": "$a : $2 aucsh",
+          "content": "$a : $2 ",
           "indicators": [
             "\\",
             "\\"
@@ -365,8 +353,8 @@ MARC_TEMPLATES_JSON = r'''[
   {
     "module": "MARC_AUTHORITY_EDITOR",
     "id": "0878d728-77af-4055-a61c-c21966e67ed4",
-    "title": "AUC Subjects (Topical/Gegraphical) - AUC-TEMP-GEOGRAPIC-PORTAL",
-    "description": "ÙÙØ¶ÙØ¹ (ÙÙØ¶ÙØ¹Ù/Ø¬ØºØ±Ø§ÙÙ)",
+    "title": "Subject Gegraphical Name (151) - اسم المكان الجغرافي (151)",
+    "description": "This is the template for Subject Gegraphical names. هذا هو نموذج الأسماء الجغرافية",
     "content": {
       "fields": [
         {
@@ -427,7 +415,7 @@ MARC_TEMPLATES_JSON = r'''[
         },
         {
           "tag": "040",
-          "content": "$a SA-RiAUC $b ara $c SA-RiAUC $f aucsh $e rda",
+          "content": "$a $b $c $e $f ",
           "indicators": [
             "\\",
             "\\"
@@ -463,7 +451,7 @@ MARC_TEMPLATES_JSON = r'''[
         },
         {
           "tag": "075",
-          "content": "$a ÙÙØ§Ù Ø¬ØºØ±Ø§ÙÙâªâªâª $b ge $2 auce",
+          "content": "$a اسم مكان جغرافي $b $2 ",
           "indicators": [
             "\\",
             "\\"
@@ -640,8 +628,8 @@ MARC_TEMPLATES_JSON = r'''[
   {
     "module": "MARC_AUTHORITY_EDITOR",
     "id": "a7f24d98-556f-45c9-8f2d-8b51d4e236db",
-    "title": "AUC Subjects (Topical/Gegraphical) - AUC-TEMP-SUBJECT-PORTAL",
-    "description": "ÙÙØ¶ÙØ¹ (ÙÙØ¶ÙØ¹Ù/Ø¬ØºØ±Ø§ÙÙ)",
+    "title": "Subject Topical Name  (150) - اسم موضوعي (150)",
+    "description": "This is the template for subject topical names. هذا هو نموذج الأسماء الموضوعية",
     "content": {
       "fields": [
         {
@@ -702,7 +690,7 @@ MARC_TEMPLATES_JSON = r'''[
         },
         {
           "tag": "040",
-          "content": "$a SA-RiAUC $b ara $c SA-RiAUC $f aucsh $e rda",
+          "content": "$a  $b $c $e $f ",
           "indicators": [
             "\\",
             "\\"
@@ -726,7 +714,7 @@ MARC_TEMPLATES_JSON = r'''[
         },
         {
           "tag": "075",
-          "content": "$a ÙØµØ·ÙØ­ ÙÙØ¶ÙØ¹Ùâªâªâª $b su $2 auce",
+          "content": "$a اسم موضوعي $b  $2 ",
           "indicators": [
             "\\",
             "\\"
@@ -866,799 +854,6 @@ MARC_TEMPLATES_JSON = r'''[
         "indicator_count": "2",
         "sub_count": "2",
         "base_address_data": "00241",
-        "encoding": "n",
-        "punctuation": "\\",
-        "undefined1": "\\",
-        "portion_length": "4",
-        "start_portion_length": "5",
-        "implement_portion_length": "0",
-        "undefined2": "0"
-      }
-    }
-  },
-  {
-    "module": "MARC_AUTHORITY_EDITOR",
-    "id": "a37646cd-7a77-48d0-97ca-015b195374c2",
-    "title": "AUTHROTY-RDA-2015",
-    "description": "AUTHROTY-RDA-2015",
-    "content": {
-      "fields": [
-        {
-          "tag": "001",
-          "content": "",
-          "isProtected": true,
-          "id": "253d0bef-60cd-4ed0-8cc8-f18e540a1711",
-          "_isDeleted": false,
-          "_isLinked": false
-        },
-        {
-          "tag": "005",
-          "content": "20250506060637.2",
-          "isProtected": false,
-          "id": "775864fb-f387-43c2-b944-035246300568",
-          "_isDeleted": false,
-          "_isLinked": false
-        },
-        {
-          "tag": "008",
-          "content": {
-            "Date Ent": "150301",
-            "Geo Subd": "\\",
-            "Roman": "n",
-            "Lang": "|",
-            "Kind rec": "a",
-            "Cat Rules": "z",
-            "SH Sys": "z",
-            "Series": "n",
-            "Numb Series": "n",
-            "Main use": "a",
-            "Subj use": "a",
-            "Series use": "b",
-            "Type Subd": "n",
-            "Undef_18": "\\\\\\\\\\\\\\\\\\\\",
-            "Govt Ag": "\\",
-            "RefEval": "a",
-            "Undef_30": "\\",
-            "RecUpd": "a",
-            "Pers Name": "a",
-            "Level Est": "d",
-            "Undef_34": "\\\\\\\\",
-            "Mod Rec Est": "|",
-            "Source": "c"
-          },
-          "isProtected": false,
-          "id": "e827c90e-06f7-40b6-8171-bc1f28143951",
-          "_isDeleted": false,
-          "_isLinked": false
-        },
-        {
-          "tag": "040",
-          "content": "$a SA-RiAUC $b ara $c SA-RiAUC $f aucnm $e rda",
-          "indicators": [
-            "\\",
-            "\\"
-          ],
-          "isProtected": false,
-          "id": "fd130579-5096-4651-bdee-bd9638edfc3c",
-          "_isDeleted": false,
-          "_isLinked": false
-        },
-        {
-          "tag": "046",
-          "content": "$f : $g :",
-          "indicators": [
-            "\\",
-            "\\"
-          ],
-          "isProtected": false,
-          "id": "3f8b69b8-454b-4a89-98f1-10799b8a1779",
-          "_isDeleted": false,
-          "_isLinked": false
-        },
-        {
-          "tag": "075",
-          "content": "$a Ø§Ø³Ù Ø´Ø®Øµ $b nm $2 auce",
-          "indicators": [
-            "\\",
-            "\\"
-          ],
-          "isProtected": false,
-          "id": "72931a98-fc5c-4ff5-9981-6c827b156718",
-          "_isDeleted": false,
-          "_isLinked": false
-        },
-        {
-          "tag": "368",
-          "content": "$c :",
-          "indicators": [
-            "\\",
-            "\\"
-          ],
-          "isProtected": false,
-          "id": "8491c59f-2a76-4d8b-baff-94d4715d8922",
-          "_isDeleted": false,
-          "_isLinked": false
-        },
-        {
-          "tag": "370",
-          "content": "$a : $2 aucsh $h :",
-          "indicators": [
-            "\\",
-            "\\"
-          ],
-          "isProtected": false,
-          "id": "dae12d89-0ee6-45e7-8fb4-87f7c8c7ae0a",
-          "_isDeleted": false,
-          "_isLinked": false
-        },
-        {
-          "tag": "371",
-          "content": "$a : $b : $c : $d : $e : $m : $s : $t : $u : $v : $z :",
-          "indicators": [
-            "\\",
-            "\\"
-          ],
-          "isProtected": false,
-          "id": "0154418b-6a2f-4044-bc33-55d0b0c180a5",
-          "_isDeleted": false,
-          "_isLinked": false
-        },
-        {
-          "tag": "372",
-          "content": "$a : $2 aucsh $s : $t : $u :",
-          "indicators": [
-            "\\",
-            "\\"
-          ],
-          "isProtected": false,
-          "id": "b9cec215-cd5d-4885-b5eb-7314619ec7b7",
-          "_isDeleted": false,
-          "_isLinked": false
-        },
-        {
-          "tag": "373",
-          "content": "$a : $2 aucnm $s : $t : $u :",
-          "indicators": [
-            "\\",
-            "\\"
-          ],
-          "isProtected": false,
-          "id": "176d7bb8-bb48-4122-8730-d2f668739f7c",
-          "_isDeleted": false,
-          "_isLinked": false
-        },
-        {
-          "tag": "374",
-          "content": "$a : $2 aucsh",
-          "indicators": [
-            "\\",
-            "\\"
-          ],
-          "isProtected": false,
-          "id": "2cf01df4-6504-44d9-a175-e5746bbc4d61",
-          "_isDeleted": false,
-          "_isLinked": false
-        },
-        {
-          "tag": "375",
-          "content": "$a :",
-          "indicators": [
-            "\\",
-            "\\"
-          ],
-          "isProtected": false,
-          "id": "58581dc9-1dd1-4497-81f2-19b174822c63",
-          "_isDeleted": false,
-          "_isLinked": false
-        },
-        {
-          "tag": "377",
-          "content": "$a :",
-          "indicators": [
-            "\\",
-            "\\"
-          ],
-          "isProtected": false,
-          "id": "a491dd2d-cca7-4e9f-9d04-fbd777124a0c",
-          "_isDeleted": false,
-          "_isLinked": false
-        },
-        {
-          "tag": "378",
-          "content": "$q :",
-          "indicators": [
-            "\\",
-            "\\"
-          ],
-          "isProtected": false,
-          "id": "09256119-be89-4c03-bfd5-927f0589e26e",
-          "_isDeleted": false,
-          "_isLinked": false
-        },
-        {
-          "tag": "400",
-          "content": "$a : $d :",
-          "indicators": [
-            "1",
-            "\\"
-          ],
-          "isProtected": false,
-          "id": "5ff02781-3795-495c-a9c0-2b920afc7173",
-          "_isDeleted": false,
-          "_isLinked": false
-        },
-        {
-          "tag": "500",
-          "content": "$w r $i : $a : $d :",
-          "indicators": [
-            "1",
-            "\\"
-          ],
-          "isProtected": false,
-          "id": "fec7b5fe-6d97-4dfe-92ed-82165a382088",
-          "_isDeleted": false,
-          "_isLinked": false
-        },
-        {
-          "tag": "670",
-          "content": "$a : $b : $u :",
-          "indicators": [
-            "\\",
-            "\\"
-          ],
-          "isProtected": false,
-          "id": "45c8d151-e0cd-4c82-8474-98cc81dd5e74",
-          "_isDeleted": false,
-          "_isLinked": false
-        },
-        {
-          "tag": "678",
-          "content": "$a : $b : $u :",
-          "indicators": [
-            "\\",
-            "\\"
-          ],
-          "isProtected": false,
-          "id": "e609577f-25f1-4a70-aa20-867d92c1bf66",
-          "_isDeleted": false,
-          "_isLinked": false
-        },
-        {
-          "tag": "700",
-          "content": "$a : $d : $0 : $1 :",
-          "indicators": [
-            "1",
-            "0"
-          ],
-          "isProtected": false,
-          "id": "3b552c80-d5bd-4e44-b1ba-d69fc465b9d5",
-          "_isDeleted": false,
-          "_isLinked": false
-        },
-        {
-          "tag": "856",
-          "content": "$u : $x :",
-          "indicators": [
-            "4",
-            "\\"
-          ],
-          "isProtected": false,
-          "id": "999efd61-6603-4e31-bbb4-45a105e12119",
-          "_isDeleted": false,
-          "_isLinked": false
-        },
-        {
-          "tag": "880",
-          "content": "$a :",
-          "indicators": [
-            "\\",
-            "\\"
-          ],
-          "isProtected": false,
-          "id": "795e8fa5-fc9f-431b-99f4-c2f4589aa234",
-          "_isDeleted": false,
-          "_isLinked": false
-        }
-      ],
-      "leader": {
-        "length": "00729",
-        "status": "c",
-        "type": "z",
-        "undefined": "\\\\",
-        "scheme": "a",
-        "indicator_count": "2",
-        "sub_count": "2",
-        "base_address_data": "00301",
-        "encoding": "n",
-        "punctuation": "\\",
-        "undefined1": "\\",
-        "portion_length": "4",
-        "start_portion_length": "5",
-        "implement_portion_length": "0",
-        "undefined2": "0"
-      }
-    }
-  },
-  {
-    "module": "MARC_AUTHORITY_EDITOR",
-    "id": "a549d6e0-d220-427f-a1fa-cf508d5c0963",
-    "title": "AUC Subjects (Topical/Gegraphical) - AUC_SUBJECT-RDA",
-    "description": "ÙÙØ¶ÙØ¹ (ÙÙØ¶ÙØ¹Ù)",
-    "content": {
-      "fields": [
-        {
-          "tag": "001",
-          "content": "",
-          "isProtected": true,
-          "id": "af35de41-4277-4303-9601-e449eae74a52",
-          "_isDeleted": false,
-          "_isLinked": false
-        },
-        {
-          "tag": "005",
-          "content": "20250506060958.1",
-          "isProtected": false,
-          "id": "61b7e897-8416-4782-8f40-434fa149c97d",
-          "_isDeleted": false,
-          "_isLinked": false
-        },
-        {
-          "tag": "003",
-          "content": "SA-RiAUC",
-          "isProtected": false,
-          "id": "6d4130ef-8602-40f0-a7e0-c75ae7c30cb6",
-          "_isDeleted": false,
-          "_isLinked": false
-        },
-        {
-          "tag": "008",
-          "content": {
-            "Date Ent": "071208",
-            "Geo Subd": "\\",
-            "Roman": "n",
-            "Lang": "|",
-            "Kind rec": "a",
-            "Cat Rules": "z",
-            "SH Sys": "z",
-            "Series": "n",
-            "Numb Series": "n",
-            "Main use": "b",
-            "Subj use": "a",
-            "Series use": "b",
-            "Type Subd": "|",
-            "Undef_18": "\\\\\\\\\\\\\\\\\\\\",
-            "Govt Ag": "\\",
-            "RefEval": "|",
-            "Undef_30": "\\",
-            "RecUpd": "a",
-            "Pers Name": "n",
-            "Level Est": "a",
-            "Undef_34": "\\\\\\\\",
-            "Mod Rec Est": "|",
-            "Source": "c"
-          },
-          "isProtected": false,
-          "id": "03d6634b-dde2-4488-b3f2-5d44b72001de",
-          "_isDeleted": false,
-          "_isLinked": false
-        },
-        {
-          "tag": "040",
-          "content": "$a SA-RiAUC $b ara $c SA-RiAUC $f aucsh $e rda",
-          "indicators": [
-            "\\",
-            "\\"
-          ],
-          "isProtected": false,
-          "id": "71d584d0-733a-45d1-9130-bdf502ea2bb4",
-          "_isDeleted": false,
-          "_isLinked": false
-        },
-        {
-          "tag": "053",
-          "content": "$a : $b :",
-          "indicators": [
-            "\\",
-            "0"
-          ],
-          "isProtected": false,
-          "id": "2f9ef7b4-3465-4695-a7eb-bddc95ad884c",
-          "_isDeleted": false,
-          "_isLinked": false
-        },
-        {
-          "tag": "075",
-          "content": "$a ÙØµØ·ÙØ­ ÙÙØ¶ÙØ¹Ù $b su $2 auce",
-          "indicators": [
-            "\\",
-            "\\"
-          ],
-          "isProtected": false,
-          "id": "3a279d9a-754e-435b-bf49-1c1e9e0e667d",
-          "_isDeleted": false,
-          "_isLinked": false
-        },
-        {
-          "tag": "083",
-          "content": "$a :",
-          "indicators": [
-            "0",
-            "4"
-          ],
-          "isProtected": false,
-          "id": "e126610e-ef61-4950-a344-e5525835ce79",
-          "_isDeleted": false,
-          "_isLinked": false
-        },
-        {
-          "tag": "360",
-          "content": "$i : $a :",
-          "indicators": [
-            "\\",
-            "\\"
-          ],
-          "isProtected": false,
-          "id": "778dfd0c-6192-4222-b379-7b528678245b",
-          "_isDeleted": false,
-          "_isLinked": false
-        },
-        {
-          "tag": "450",
-          "content": "$a :",
-          "indicators": [
-            "\\",
-            "\\"
-          ],
-          "isProtected": false,
-          "id": "6b2798ef-e02b-4bb3-b812-748bd45c7d0f",
-          "_isDeleted": false,
-          "_isLinked": false
-        },
-        {
-          "tag": "450",
-          "content": "$a :",
-          "indicators": [
-            "\\",
-            "\\"
-          ],
-          "isProtected": false,
-          "id": "d999290b-4b86-4844-bf7c-b7b8c3d1892b",
-          "_isDeleted": false,
-          "_isLinked": false
-        },
-        {
-          "tag": "550",
-          "content": "$a :",
-          "indicators": [
-            "\\",
-            "\\"
-          ],
-          "isProtected": false,
-          "id": "434f987c-d5b0-47e9-9a83-0eb94ba4ecd7",
-          "_isDeleted": false,
-          "_isLinked": false
-        },
-        {
-          "tag": "677",
-          "content": "$a :",
-          "indicators": [
-            "\\",
-            "\\"
-          ],
-          "isProtected": false,
-          "id": "ce35efdd-907c-4d2e-a7b1-3b9efacf1dc9",
-          "_isDeleted": false,
-          "_isLinked": false
-        },
-        {
-          "tag": "680",
-          "content": "$i : $a :",
-          "indicators": [
-            "\\",
-            "\\"
-          ],
-          "isProtected": false,
-          "id": "c2aa7a0c-11de-4364-8897-65caf6d4cdf9",
-          "_isDeleted": false,
-          "_isLinked": false
-        },
-        {
-          "tag": "681",
-          "content": "$i : $a :",
-          "indicators": [
-            "\\",
-            "\\"
-          ],
-          "isProtected": false,
-          "id": "58ada28f-d9ce-48b8-810f-4349dbbfe938",
-          "_isDeleted": false,
-          "_isLinked": false
-        },
-        {
-          "tag": "750",
-          "content": "$a : $0 :",
-          "indicators": [
-            "\\",
-            "0"
-          ],
-          "isProtected": false,
-          "id": "3de68dc5-48d8-4ea3-be4c-507353830e94",
-          "_isDeleted": false,
-          "_isLinked": false
-        },
-        {
-          "tag": "856",
-          "content": "$u : $x :",
-          "indicators": [
-            "4",
-            "\\"
-          ],
-          "isProtected": false,
-          "id": "16e56cb4-b1cc-429b-a891-1bec9362be4b",
-          "_isDeleted": false,
-          "_isLinked": false
-        }
-      ],
-      "leader": {
-        "length": "00547",
-        "status": "c",
-        "type": "z",
-        "undefined": "\\\\",
-        "scheme": "a",
-        "indicator_count": "2",
-        "sub_count": "2",
-        "base_address_data": "00241",
-        "encoding": "n",
-        "punctuation": "\\",
-        "undefined1": "\\",
-        "portion_length": "4",
-        "start_portion_length": "5",
-        "implement_portion_length": "0",
-        "undefined2": "0"
-      }
-    }
-  },
-  {
-    "module": "MARC_AUTHORITY_EDITOR",
-    "id": "fe0fa486-30d0-447e-b314-8e13bed3f1d8",
-    "title": "AUC Subjects (Topical/Gegraphical) - AUC-GEOGRAPIC SUBJECT RDA",
-    "description": "ÙÙØ¶ÙØ¹ (Ø¬ØºØ±Ø§ÙÙ)",
-    "content": {
-      "fields": [
-        {
-          "tag": "001",
-          "content": "",
-          "isProtected": true,
-          "id": "06cde052-a303-44a9-9d62-eaefd707b446",
-          "_isDeleted": false,
-          "_isLinked": false
-        },
-        {
-          "tag": "005",
-          "content": "20250506062516.9",
-          "isProtected": false,
-          "id": "9818d52b-7e9b-42a3-924f-821ea3dc7cad",
-          "_isDeleted": false,
-          "_isLinked": false
-        },
-        {
-          "tag": "003",
-          "content": "SA-RiAUC",
-          "isProtected": false,
-          "id": "496799cd-be04-428f-be5c-8da4bfe56eb8",
-          "_isDeleted": false,
-          "_isLinked": false
-        },
-        {
-          "tag": "008",
-          "content": {
-            "Date Ent": "071208",
-            "Geo Subd": "\\",
-            "Roman": "n",
-            "Lang": "|",
-            "Kind rec": "a",
-            "Cat Rules": "z",
-            "SH Sys": "z",
-            "Series": "n",
-            "Numb Series": "n",
-            "Main use": "b",
-            "Subj use": "a",
-            "Series use": "b",
-            "Type Subd": "|",
-            "Undef_18": "\\\\\\\\\\\\\\\\\\\\",
-            "Govt Ag": "\\",
-            "RefEval": "|",
-            "Undef_30": "\\",
-            "RecUpd": "a",
-            "Pers Name": "n",
-            "Level Est": "a",
-            "Undef_34": "\\\\\\\\",
-            "Mod Rec Est": "|",
-            "Source": "c"
-          },
-          "isProtected": false,
-          "id": "ced9b565-4f9e-4d35-bad3-81273bc97611",
-          "_isDeleted": false,
-          "_isLinked": false
-        },
-        {
-          "tag": "040",
-          "content": "$a SA-RiAUC $b ara $c SA-RiAUC $f aucsh $e rda",
-          "indicators": [
-            "\\",
-            "\\"
-          ],
-          "isProtected": false,
-          "id": "199edeb4-7d09-404c-aab5-868329190a81",
-          "_isDeleted": false,
-          "_isLinked": false
-        },
-        {
-          "tag": "043",
-          "content": "$a :",
-          "indicators": [
-            "\\",
-            "\\"
-          ],
-          "isProtected": false,
-          "id": "df8bc0d8-faf2-4103-be6c-95c61cb1d049",
-          "_isDeleted": false,
-          "_isLinked": false
-        },
-        {
-          "tag": "053",
-          "content": "$a : $b :",
-          "indicators": [
-            "\\",
-            "0"
-          ],
-          "isProtected": false,
-          "id": "e88761fe-226a-4975-b8d6-85b980753c16",
-          "_isDeleted": false,
-          "_isLinked": false
-        },
-        {
-          "tag": "075",
-          "content": "$a ÙÙØ§Ù Ø¬ØºØ±Ø§ÙÙ $b ge $2 auce",
-          "indicators": [
-            "\\",
-            "\\"
-          ],
-          "isProtected": false,
-          "id": "c833c740-6d5d-403c-849c-c624787971fe",
-          "_isDeleted": false,
-          "_isLinked": false
-        },
-        {
-          "tag": "083",
-          "content": "$a :",
-          "indicators": [
-            "0",
-            "4"
-          ],
-          "isProtected": false,
-          "id": "6ce4dfdd-e5a8-4b6a-88fa-fb2cb243811a",
-          "_isDeleted": false,
-          "_isLinked": false
-        },
-        {
-          "tag": "360",
-          "content": "$i : $a :",
-          "indicators": [
-            "\\",
-            "\\"
-          ],
-          "isProtected": false,
-          "id": "16a7da4a-ac07-401b-8bb0-20b04c9009ab",
-          "_isDeleted": false,
-          "_isLinked": false
-        },
-        {
-          "tag": "451",
-          "content": "$a :",
-          "indicators": [
-            "\\",
-            "\\"
-          ],
-          "isProtected": false,
-          "id": "fd74e645-1bcb-4c9a-9d2f-f4ff96d7e9f5",
-          "_isDeleted": false,
-          "_isLinked": false
-        },
-        {
-          "tag": "451",
-          "content": "$a :",
-          "indicators": [
-            "\\",
-            "\\"
-          ],
-          "isProtected": false,
-          "id": "bd5766fc-7c32-4ffd-bb19-509b017d491e",
-          "_isDeleted": false,
-          "_isLinked": false
-        },
-        {
-          "tag": "551",
-          "content": "$i : $a :",
-          "indicators": [
-            "\\",
-            "\\"
-          ],
-          "isProtected": false,
-          "id": "7dcc0d09-0738-4e7e-a0c6-bd1417b8d6f3",
-          "_isDeleted": false,
-          "_isLinked": false
-        },
-        {
-          "tag": "680",
-          "content": "$i : $a :",
-          "indicators": [
-            "\\",
-            "\\"
-          ],
-          "isProtected": false,
-          "id": "1a76f3c4-4361-4c95-9c0d-b476ebd360f6",
-          "_isDeleted": false,
-          "_isLinked": false
-        },
-        {
-          "tag": "681",
-          "content": "$i : $a :",
-          "indicators": [
-            "\\",
-            "\\"
-          ],
-          "isProtected": false,
-          "id": "addc3142-9d56-49f2-9360-c0de69f512d2",
-          "_isDeleted": false,
-          "_isLinked": false
-        },
-        {
-          "tag": "751",
-          "content": "$a : $0 :",
-          "indicators": [
-            "\\",
-            "0"
-          ],
-          "isProtected": false,
-          "id": "4c15514c-539f-4311-8ef2-cdf44d6b424f",
-          "_isDeleted": false,
-          "_isLinked": false
-        },
-        {
-          "tag": "781",
-          "content": "$z : $z : $2 aucsh",
-          "indicators": [
-            "\\",
-            "7"
-          ],
-          "isProtected": false,
-          "id": "8026ba55-58ef-434a-898e-e05fc35d8cda",
-          "_isDeleted": false,
-          "_isLinked": false
-        },
-        {
-          "tag": "856",
-          "content": "$u : $x :",
-          "indicators": [
-            "4",
-            "\\"
-          ],
-          "isProtected": false,
-          "id": "a1e87f9b-eb21-45f1-bd15-09aaadaa6cd2",
-          "_isDeleted": false,
-          "_isLinked": false
-        }
-      ],
-      "leader": {
-        "length": "00577",
-        "status": "c",
-        "type": "z",
-        "undefined": "\\\\",
-        "scheme": "a",
-        "indicator_count": "2",
-        "sub_count": "2",
-        "base_address_data": "00253",
         "encoding": "n",
         "punctuation": "\\",
         "undefined1": "\\",
@@ -2702,8 +1897,8 @@ MARC_TEMPLATES_JSON = r'''[
   {
     "module": "MARC_EDITOR",
     "id": "699181be-9359-4b05-8dda-baa97e8cd0ad",
-    "title": "AUC RDA Template",
-    "description": "Ø§ÙØªÙØ¬Ø§Ù Ø§ÙØ«Ø§Ø¨Ø© ÙØªØ³Ø¬ÙÙØ§Øª Ø§ÙÙÙØ±Ø³ Ø§ÙØ¹Ø±Ø¨Ù",
+    "title": "Book - RDA Template كتاب - قالب RDA",
+    "description": "This is the RDA template for books based on the cataloging rules of the RDA standard. هذا هو قالب RDA للكتب استنادًا إلى قواعد الفهرسة لمعيار RDA. ",
     "content": {
       "fields": [
         {
@@ -2764,7 +1959,7 @@ MARC_TEMPLATES_JSON = r'''[
         },
         {
           "tag": "040",
-          "content": "$aSA-RiAUC$bara$cSA-RiAUC$erda",
+          "content": "$a $b $c",
           "id": "9ea902e3-784c-4478-a7d4-36e4d64f36a5",
           "_isDeleted": false,
           "_isLinked": false
