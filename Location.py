@@ -41,75 +41,90 @@ def loc():
             error_messages = []  # Track errors for summary
             with st.spinner(f'Creating Selected Locations..'):
                 for index, row in selection.iterrows():
+                    sp_name = str(row["ServicePoints name"]).strip()
+                    sp_code = str(row["ServicePoints Codes"]).strip()
+                    institution_name = str(row["InstitutionsName"]).strip()
+                    institution_code = str(row["InstitutionsCodes"]).strip()
+                    campus_name = str(row["CampusNames"]).strip()
+                    campus_code = str(row["CampusCodes"]).strip()
+                    library_name = str(row["LibrariesName"]).strip()
+                    library_code = str(row["LibrariesCodes"]).strip()
+                    location_name = str(row["LocationsName"]).strip()
+                    location_code = str(row["LocationsCodes"]).strip()
 
-                    name_result = requests.get(f'{st.session_state.okapi}/service-points?query=(name = {row["ServicePoints name"]})', headers=headers).json()
-                    code_result = requests.get(f'{st.session_state.okapi}/service-points?query=(code = {row["ServicePoints Codes"]})', headers=headers).json()
+                    name_result = requests.get(
+                        f"{st.session_state.okapi}/service-points?query=(name = {sp_name})",
+                        headers=headers,
+                    ).json()
+                    code_result = requests.get(
+                        f"{st.session_state.okapi}/service-points?query=(code = {sp_code})",
+                        headers=headers,
+                    ).json()
                     empty = []
 
                     # Create service point and handle response (already exists = success, no message)
-                    success, error_msg = create_sp(row["ServicePoints name"], row["ServicePoints Codes"], row["ServicePoints name"],
-                              row["ServicePoints name"])
+                    success, error_msg = create_sp(sp_name, sp_code, sp_name, sp_name)
                     if not success and error_msg:
                         error_messages.append(error_msg)
-                        st.warning(f"⚠️ Service Point '{row['ServicePoints name']}': {error_msg}")
+                        st.warning(f"⚠️ Service Point '{sp_name}': {error_msg}")
 
 
 
                     result = requests.get(
-                        f'{st.session_state.okapi}/location-units/institutions?query=(name=={row["InstitutionsName"]})',
+                        f"{st.session_state.okapi}/location-units/institutions?query=(name=={institution_name})",
                         headers=headers).json()
 
                     if result['locinsts'] == empty:
-                        success, error_msg = create_institutions(row["InstitutionsName"], row["InstitutionsCodes"])
+                        success, error_msg = create_institutions(institution_name, institution_code)
                         if not success and error_msg:
-                            st.warning(f"⚠️ Institution '{row['InstitutionsName']}': {error_msg}")
+                            st.warning(f"⚠️ Institution '{institution_name}': {error_msg}")
 
 
                     # GET INSTITUTION ID
                     result = requests.get(
-                        f'{st.session_state.okapi}/location-units/institutions?query=(name=={row["InstitutionsName"]})',
+                        f"{st.session_state.okapi}/location-units/institutions?query=(name=={institution_name})",
                         headers=headers).json()
                     insID = result['locinsts'][0]['id']
 
 
                     result2 = requests.get(
-                        f'{st.session_state.okapi}/location-units/campuses?query=(name=={row["CampusNames"]})',
+                        f"{st.session_state.okapi}/location-units/campuses?query=(name=={campus_name})",
                         headers=headers).json()
 
                     if result2['loccamps'] == empty:
-                        success, error_msg = create_campuses(row["CampusNames"], row["CampusCodes"], insID)
+                        success, error_msg = create_campuses(campus_name, campus_code, insID)
                         if not success and error_msg:
-                            st.warning(f"⚠️ Campus '{row['CampusNames']}': {error_msg}")
+                            st.warning(f"⚠️ Campus '{campus_name}': {error_msg}")
 
 
                     # CREATING LIBRARIES
                     result = requests.get(
-                        f'{st.session_state.okapi}/location-units/campuses?query=(name=={row["CampusNames"]})',
+                        f"{st.session_state.okapi}/location-units/campuses?query=(name=={campus_name})",
                         headers=headers).json()
 
                     campusID = result['loccamps'][0]['id']
 
                     result2 = requests.get(
-                        f'{st.session_state.okapi}/location-units/libraries?query=(name=={row["LibrariesName"]})',
+                        f"{st.session_state.okapi}/location-units/libraries?query=(name=={library_name})",
                         headers=headers).json()
 
                     if result2['loclibs'] == empty:
-                        success, error_msg = create_libraries(row['LibrariesName'], row['LibrariesCodes'], campusID)
+                        success, error_msg = create_libraries(library_name, library_code, campusID)
                         if not success and error_msg:
-                            st.warning(f"⚠️ Library '{row['LibrariesName']}': {error_msg}")
+                            st.warning(f"⚠️ Library '{library_name}': {error_msg}")
 
                     # else:
                         # st.warning(f'Libary ({row["LibrariesName"]}) already exists.')
 
                     # FILL LOCATION DICTIONARY
                     result = requests.get(
-                        f'{st.session_state.okapi}/service-points?query=(name=={row["ServicePoints name"]})',
+                        f"{st.session_state.okapi}/service-points?query=(name=={sp_name})",
                         headers=headers).json()
 
                     servicepoints = result.get('servicepoints') or []
                     if not servicepoints:
                         warning_msg = (
-                            f"❌ No service point found for name '{row['ServicePoints name']}'. "
+                            f"❌ No service point found for name '{sp_name}'. "
                             "Skipping this location entry."
                         )
                         st.warning(warning_msg)
@@ -119,27 +134,27 @@ def loc():
                     spid = servicepoints[0].get('id')
                     if not spid:
                         warning_msg = (
-                            f"❌ Service point '{row['ServicePoints name']}' is missing an ID. "
+                            f"❌ Service point '{sp_name}' is missing an ID. "
                             "Skipping this location entry."
                         )
                         st.warning(warning_msg)
                         error_messages.append(warning_msg)
                         continue
-                    if locations.get(row['LocationsName']) is not None:
-                        locations_code[row['LocationsName']].append(row['LocationsCodes'])
-                        locations_lib[row['LocationsName']].append(row['LibrariesName'])
-                        locations_camp[row['LocationsName']].append(campusID)
-                        locations_inst[row['LocationsName']].append(insID)
+                    if locations.get(location_name) is not None:
+                        locations_code[location_name].append(location_code)
+                        locations_lib[location_name].append(library_name)
+                        locations_camp[location_name].append(campusID)
+                        locations_inst[location_name].append(insID)
 
-                        if spid not in locations[row['LocationsName']]:
-                            locations[row['LocationsName']].append(spid)
+                        if spid not in locations[location_name]:
+                            locations[location_name].append(spid)
 
                     else:
-                        locations[row['LocationsName']] = [spid]
-                        locations_code[row['LocationsName']] = [row['LocationsCodes']]
-                        locations_lib[row['LocationsName']] = [row['LibrariesName']]
-                        locations_camp[row['LocationsName']] = [campusID]
-                        locations_inst[row['LocationsName']] = [insID]
+                        locations[location_name] = [spid]
+                        locations_code[location_name] = [location_code]
+                        locations_lib[location_name] = [library_name]
+                        locations_camp[location_name] = [campusID]
+                        locations_inst[location_name] = [insID]
 
                 for key in locations:
                     for i in range(0, len(locations_code[key])):
@@ -149,7 +164,7 @@ def loc():
 
                         # GET LIBRARY ID
                         res = requests.get(
-                            f'{st.session_state.okapi}/location-units/libraries?query=(name=={locations_lib[key][i]})',
+                            f"{st.session_state.okapi}/location-units/libraries?query=(name=={locations_lib[key][i]})",
                             headers=headers,
                         ).json()
                         libraries = res.get("loclibs") or []
