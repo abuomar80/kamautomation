@@ -8,7 +8,21 @@ from legacy_session_state import legacy_session_state
 
 legacy_session_state()
 
-if st.session_state.allow_tenant:
+# Initialize tenant-related session state variables if not set
+# Check both widget-bound keys and copied keys (from form submission)
+# Use .get() to safely check and initialize values
+if not st.session_state.get('tenant'):
+    st.session_state['tenant'] = st.session_state.get('tenant_name', '')
+if not st.session_state.get('okapi'):
+    st.session_state['okapi'] = st.session_state.get('okapi_url', '')
+if not st.session_state.get('token'):
+    st.session_state['token'] = st.session_state.get('token', '')
+
+# Initialize endpoints
+services_endpoint = "/service-points"
+calendar_endpoint = "/calendar/calendars"
+
+if st.session_state.get('allow_tenant'):
     # Try widget-bound keys first, then fallback to copied keys
     okapi_url = st.session_state.get('okapi') or st.session_state.get('okapi_url')
     tenant_id = st.session_state.get('tenant') or st.session_state.get('tenant_name')
@@ -16,10 +30,11 @@ if st.session_state.allow_tenant:
     
     if okapi_url and tenant_id and token:
         headers = {"x-okapi-tenant": f"{tenant_id}", "x-okapi-token": f"{token}"}
-        services_endpoint = "/service-points"
-        calendar_endpoint = "/calendar/calendars"
     else:
         headers = None
+else:
+    headers = None
+    okapi_url = None
 
 def calendar():
     if not headers:
@@ -304,12 +319,25 @@ def calendar():
     #     st.warning('Please create locations first.')
 
 def exceptions():
+    # Get tenant connection details with fallbacks
+    tenant = st.session_state.get("tenant") or st.session_state.get("tenant_name")
+    token = st.session_state.get("token")
+    okapi = st.session_state.get("okapi") or st.session_state.get("okapi_url")
+
+    if not all([tenant, token, okapi]):
+        st.error("⚠️ Tenant connection information is missing. Please connect to a tenant first.")
+        st.info("Go to the Tenant page, enter connection details, click Connect, then return here.")
+        return
+    
+    headers = {"x-okapi-tenant": f"{tenant}", "x-okapi-token": f"{token}"}
+    services_endpoint = "/service-points"
+    
     file = upload('Calendar Exceptions')
     df = pd.DataFrame(file)
     for index, row in df.iterrows():
         # st.write(row['ServicePoints name'])
         service_points = re.get(
-            st.session_state.okapi + services_endpoint + f'?query=(name=={row["ServicePoints name"]})',
+            okapi + services_endpoint + f'?query=(name=={row["ServicePoints name"]})',
             headers=headers).json()
         if not service_points['servicepoints']:
             # IF THE SERVICE POINT DOES NOT EXIST
