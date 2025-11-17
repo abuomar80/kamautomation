@@ -11,13 +11,22 @@ from legacy_session_state import legacy_session_state
 # Get session state of legacy session
 legacy_session_state()
 
+# Initialize tenant-related session state variables if not set
+# Check both widget-bound keys and copied keys (from form submission)
+if 'tenant' not in st.session_state or not st.session_state.get('tenant'):
+    st.session_state['tenant'] = st.session_state.get('tenant_name', '')
+if 'okapi' not in st.session_state or not st.session_state.get('okapi'):
+    st.session_state['okapi'] = st.session_state.get('okapi_url', '')
+if 'token' not in st.session_state:
+    st.session_state['token'] = st.session_state.get('token')
+
 if "department_activate" not in st.session_state:
     st.session_state.department_activate = True
 
-def create_ugroup(df, expirationOffsetInDays):
+def create_ugroup(df, expirationOffsetInDays, okapi, tenant, token):
 
-    ugroupurl=f'{st.session_state.okapi}/groups'
-    headers = {"x-okapi-tenant": f"{st.session_state.tenant}", "x-okapi-token": f"{st.session_state.token}"}
+    ugroupurl=f'{okapi}/groups'
+    headers = {"x-okapi-tenant": f"{tenant}", "x-okapi-token": f"{token}"}
 
     if st.session_state.Disdur is False:
         for index, row in df.iterrows():
@@ -45,9 +54,9 @@ def create_ugroup(df, expirationOffsetInDays):
 
             requests.post(ugroupurl, data=json.dumps(to_do), headers=headers)
 
-def departments(df):
-    department = f'{st.session_state.okapi}/departments'
-    headers = {"x-okapi-tenant": f"{st.session_state.tenant}", "x-okapi-token": f"{st.session_state.token}"}
+def departments(df, okapi, tenant, token):
+    department = f'{okapi}/departments'
+    headers = {"x-okapi-tenant": f"{tenant}", "x-okapi-token": f"{token}"}
     for index, row in df.iterrows():
         if row['Department'] is None:
             pass
@@ -73,10 +82,20 @@ def user_groups():
         df['Description'] = df['Description'].fillna(df['Medad'])
         df['Description'] = df['Description'].str.strip()
     
-    headers = {"x-okapi-tenant": f"{st.session_state.tenant}", "x-okapi-token": f"{st.session_state.token}"}
+    # Get tenant connection details with fallbacks
+    tenant = st.session_state.get("tenant") or st.session_state.get("tenant_name")
+    token = st.session_state.get("token")
+    okapi = st.session_state.get("okapi") or st.session_state.get("okapi_url")
+
+    if not all([tenant, token, okapi]):
+        st.error("⚠️ Tenant connection information is missing. Please connect to a tenant first.")
+        st.info("Go to the Tenant page, enter connection details, click Connect, then return here.")
+        return
+    
+    headers = {"x-okapi-tenant": f"{tenant}", "x-okapi-token": f"{token}"}
     
     # GET request to get current user groups
-    response = requests.get(f"{st.session_state.okapi}/groups", headers=headers).json()
+    response = requests.get(f"{okapi}/groups", headers=headers).json()
     df_group = json_normalize(response['usergroups'])
     
     # Create an editable grid of the uploaded CSV data
@@ -121,7 +140,8 @@ def user_groups():
         if create_button:
             if not selection.empty:
                 with st.spinner('Creating user groups...'):
-                    create_ugroup(selection, st.session_state.offsetduration)
+                    offsetduration = st.session_state.get('offsetduration', 0)
+                    create_ugroup(selection, offsetduration, okapi, tenant, token)
                     # Mark this selection as created to prevent showing summary again
                     st.session_state.last_user_groups_selection_hash = current_selection_hash
                     st.success(f'✅ {len(selection)} User Group(s) Created Successfully')
