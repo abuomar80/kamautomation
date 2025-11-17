@@ -155,88 +155,89 @@ def loan_policies():
             with st.spinner('Creating/updating loan policies...'):
                 # Loop through each row and create a loan policy record
                 for idx, row in selection.iterrows():
-                    # Build the loan policy data structure
-                    policy_data = {}
+                    try:
+                        # Build the loan policy data structure
+                        policy_data = {}
                     
-                    # Basic fields
-                    policy_data['name'] = str(row['name']).strip()
-                    if pd.notna(row.get('description')):
-                        policy_data['description'] = str(row['description']).strip()
-                    
-                    # Boolean fields
-                    if pd.notna(row.get('loanable')):
-                        policy_data['loanable'] = bool(row['loanable']) if isinstance(row['loanable'], bool) else str(row['loanable']).lower() in ['true', '1', 'yes']
-                    else:
-                        policy_data['loanable'] = True  # Default
-                    if pd.notna(row.get('renewable')):
-                        policy_data['renewable'] = bool(row['renewable']) if isinstance(row['renewable'], bool) else str(row['renewable']).lower() in ['true', '1', 'yes']
-                    else:
-                        policy_data['renewable'] = True  # Default
-                    
-                    # Build loansPolicy object
-                    loans_policy = {}
-                    if pd.notna(row.get('profileId')):
-                        loans_policy['profileId'] = str(row['profileId']).strip()
-                    else:
-                        loans_policy['profileId'] = 'Rolling'  # Default
-                    
-                    # Period
-                    if pd.notna(row.get('periodDuration')) or pd.notna(row.get('periodIntervalId')):
-                        period = {}
-                        if pd.notna(row.get('periodDuration')):
-                            period['duration'] = int(float(row['periodDuration']))
-                        if pd.notna(row.get('periodIntervalId')):
-                            period['intervalId'] = str(row['periodIntervalId']).strip()
-                        loans_policy['period'] = period
-                    
-                    # Closed library due date management
-                    if pd.notna(row.get('closedLibraryDueDateManagementId')):
-                        loans_policy['closedLibraryDueDateManagementId'] = str(row['closedLibraryDueDateManagementId']).strip()
-                    
-                    # Grace period
-                    if pd.notna(row.get('gracePeriodDuration')) or pd.notna(row.get('gracePeriodIntervalId')):
-                        grace_period = {}
-                        if pd.notna(row.get('gracePeriodDuration')):
-                            grace_period['duration'] = int(float(row['gracePeriodDuration']))
-                        if pd.notna(row.get('gracePeriodIntervalId')):
-                            grace_period['intervalId'] = str(row['gracePeriodIntervalId']).strip()
-                        loans_policy['gracePeriod'] = grace_period
-                    
-                    # Item limit
-                    if pd.notna(row.get('itemLimit')):
-                        loans_policy['itemLimit'] = str(int(float(row['itemLimit'])))
-                    
-                    if loans_policy:
-                        policy_data['loansPolicy'] = loans_policy
-                    
-                    # Build renewalsPolicy object
-                    renewals_policy = {}
-                    if pd.notna(row.get('numberAllowed')):
-                        renewals_policy['numberAllowed'] = str(int(float(row['numberAllowed'])))
-                    if pd.notna(row.get('renewFromId')):
-                        renewals_policy['renewFromId'] = str(row['renewFromId']).strip()
-                    
-                    if renewals_policy:
-                        policy_data['renewalsPolicy'] = renewals_policy
-                    
-                    # ID (optional)
-                    if 'id' in row and pd.notna(row.get('id')) and str(row['id']).strip():
-                        policy_data['id'] = str(row['id']).strip()
-                    else:
-                        # Generate UUID if not provided
-                        policy_data['id'] = str(uuid.uuid4())
-                    
-                    # Create or update the loan policy (one API call per row)
-                    success, error_msg = create_loan_policy(policy_data, okapi, headers)
-                    
-                    if success:
-                        success_count += 1
-                    else:
-                        error_messages.append(f"Loan Policy '{row.get('name', 'N/A')}': {error_msg}")
-                        st.warning(f"⚠️ Loan Policy '{row.get('name', 'N/A')}': {error_msg}")
-                except Exception as e:
-                    error_messages.append(f"Loan Policy '{row.get('name', 'N/A')}': {str(e)}")
-                    st.warning(f"⚠️ Loan Policy '{row.get('name', 'N/A')}': {str(e)}")
+                        # Basic fields
+                        policy_data['name'] = str(row['name']).strip()
+                        if pd.notna(row.get('description')):
+                            policy_data['description'] = str(row['description']).strip()
+                        
+                        # Boolean fields
+                        if pd.notna(row.get('loanable')):
+                            policy_data['loanable'] = bool(row['loanable']) if isinstance(row['loanable'], bool) else str(row['loanable']).lower() in ['true', '1', 'yes']
+                        else:
+                            policy_data['loanable'] = True  # Default
+                        if pd.notna(row.get('renewable')):
+                            policy_data['renewable'] = bool(row['renewable']) if isinstance(row['renewable'], bool) else str(row['renewable']).lower() in ['true', '1', 'yes']
+                        else:
+                            policy_data['renewable'] = True  # Default
+                        
+                        # Build loansPolicy object
+                        loans_policy = {}
+                        if pd.notna(row.get('profileId')):
+                            loans_policy['profileId'] = str(row['profileId']).strip()
+                        else:
+                            loans_policy['profileId'] = 'Rolling'  # Default
+                        
+                        # Period
+                        if pd.notna(row.get('periodDuration')) or pd.notna(row.get('periodIntervalId')):
+                            period = {}
+                            if pd.notna(row.get('periodDuration')):
+                                period['duration'] = int(float(row['periodDuration']))
+                            if pd.notna(row.get('periodIntervalId')):
+                                period['intervalId'] = str(row['periodIntervalId']).strip()
+                            loans_policy['period'] = period
+                        
+                        # Closed library due date management
+                        if pd.notna(row.get('closedLibraryDueDateManagementId')):
+                            loans_policy['closedLibraryDueDateManagementId'] = str(row['closedLibraryDueDateManagementId']).strip()
+                        
+                        # Grace period
+                        if pd.notna(row.get('gracePeriodDuration')) or pd.notna(row.get('gracePeriodIntervalId')):
+                            grace_period = {}
+                            if pd.notna(row.get('gracePeriodDuration')):
+                                grace_period['duration'] = int(float(row['gracePeriodDuration']))
+                            if pd.notna(row.get('gracePeriodIntervalId')):
+                                grace_period['intervalId'] = str(row['gracePeriodIntervalId']).strip()
+                            loans_policy['gracePeriod'] = grace_period
+                        
+                        # Item limit
+                        if pd.notna(row.get('itemLimit')):
+                            loans_policy['itemLimit'] = str(int(float(row['itemLimit'])))
+                        
+                        if loans_policy:
+                            policy_data['loansPolicy'] = loans_policy
+                        
+                        # Build renewalsPolicy object
+                        renewals_policy = {}
+                        if pd.notna(row.get('numberAllowed')):
+                            renewals_policy['numberAllowed'] = str(int(float(row['numberAllowed'])))
+                        if pd.notna(row.get('renewFromId')):
+                            renewals_policy['renewFromId'] = str(row['renewFromId']).strip()
+                        
+                        if renewals_policy:
+                            policy_data['renewalsPolicy'] = renewals_policy
+                        
+                        # ID (optional)
+                        if 'id' in row and pd.notna(row.get('id')) and str(row['id']).strip():
+                            policy_data['id'] = str(row['id']).strip()
+                        else:
+                            # Generate UUID if not provided
+                            policy_data['id'] = str(uuid.uuid4())
+                        
+                        # Create or update the loan policy (one API call per row)
+                        success, error_msg = create_loan_policy(policy_data, okapi, headers)
+                        
+                        if success:
+                            success_count += 1
+                        else:
+                            error_messages.append(f"Loan Policy '{row.get('name', 'N/A')}': {error_msg}")
+                            st.warning(f"⚠️ Loan Policy '{row.get('name', 'N/A')}': {error_msg}")
+                    except Exception as e:
+                        error_messages.append(f"Loan Policy '{row.get('name', 'N/A')}': {str(e)}")
+                        st.warning(f"⚠️ Loan Policy '{row.get('name', 'N/A')}': {str(e)}")
             
             # Summary message
             if error_messages:
