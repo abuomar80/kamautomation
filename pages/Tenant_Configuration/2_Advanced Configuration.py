@@ -28,6 +28,37 @@ hide_menu_style = """
             <style>
             #MainMenu {visibility: hidden;}
             footer {visibility: hidden;}
+            /* Horizontal scrolling for tabs */
+            .stTabs [data-baseweb="tab-list"] {
+                gap: 2px;
+                overflow-x: auto;
+                overflow-y: hidden;
+                flex-wrap: nowrap;
+                -webkit-overflow-scrolling: touch;
+                scrollbar-width: thin;
+            }
+            .stTabs [data-baseweb="tab"] {
+                height: 50px;
+                white-space: nowrap;
+                padding-left: 20px;
+                padding-right: 20px;
+                flex-shrink: 0;
+            }
+            /* Custom scrollbar styling */
+            .stTabs [data-baseweb="tab-list"]::-webkit-scrollbar {
+                height: 8px;
+            }
+            .stTabs [data-baseweb="tab-list"]::-webkit-scrollbar-track {
+                background: #f1f1f1;
+                border-radius: 10px;
+            }
+            .stTabs [data-baseweb="tab-list"]::-webkit-scrollbar-thumb {
+                background: #888;
+                border-radius: 10px;
+            }
+            .stTabs [data-baseweb="tab-list"]::-webkit-scrollbar-thumb:hover {
+                background: #555;
+            }
             </style>
             """
 st.markdown(hide_menu_style, unsafe_allow_html=True)
