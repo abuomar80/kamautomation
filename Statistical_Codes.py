@@ -11,14 +11,24 @@ from legacy_session_state import legacy_session_state
 # Get session state of legacy session
 legacy_session_state()
 
+# Initialize tenant-related session state variables if not set
+# Check both widget-bound keys and copied keys (from form submission)
+if 'tenant' not in st.session_state or not st.session_state.get('tenant'):
+    st.session_state['tenant'] = st.session_state.get('tenant_name', '')
+if 'okapi' not in st.session_state or not st.session_state.get('okapi'):
+    st.session_state['okapi'] = st.session_state.get('okapi_url', '')
+if 'token' not in st.session_state:
+    st.session_state['token'] = st.session_state.get('token')
+
 if "activatebtn" not in st.session_state:
     st.session_state.activatebtn = True
 
-def post_stat_types(df, headers):
+def post_stat_types(df, headers, okapi):
     """
     Posts a new material type to the Okapi API
     :param df: dataframe containing the material types to be posted
     :param headers: headers containing tenant and token information
+    :param okapi: Okapi URL
     """
     for i in df:
         todo = {
@@ -28,17 +38,18 @@ def post_stat_types(df, headers):
         }
         data = json.dumps(todo)
         # st.write(data)
-        x = requests.post(st.session_state.okapi + "/statistical-code-types", data=data, headers=headers)
+        x = requests.post(okapi + "/statistical-code-types", data=data, headers=headers)
 
-def post_stat_codes(df, headers):
+def post_stat_codes(df, headers, okapi):
     """
     Posts a new material type to the Okapi API
     :param df: dataframe containing the material types to be posted
     :param headers: headers containing tenant and token information
+    :param okapi: Okapi URL
     """
     for ind in df.index:
 
-        response = requests.get(st.session_state.okapi+f'/statistical-code-types?query=(name=={df["Medad Statistical Type"][ind]})', headers=headers).json()
+        response = requests.get(okapi+f'/statistical-code-types?query=(name=={df["Medad Statistical Type"][ind]})', headers=headers).json()
         typekey=response['statisticalCodeTypes'][0]['id']
         todo = {
             "code": f"{df['Medad Statistical Code'][ind]}",
@@ -47,7 +58,7 @@ def post_stat_codes(df, headers):
             "source": "Automation"
         }
         data = json.dumps(todo)
-        requests.post(st.session_state.okapi + "/statistical-codes", data=data, headers=headers)
+        requests.post(okapi + "/statistical-codes", data=data, headers=headers)
 def stat_types():
     """
     Main function to create new material types
@@ -70,7 +81,7 @@ def stat_types():
 
     headers = {"x-okapi-tenant": tenant, "x-okapi-token": token}
     # GET request to get current material types
-    response = requests.get(f"{st.session_state.okapi}/statistical-code-types", headers=headers).json()
+    response = requests.get(f"{okapi}/statistical-code-types", headers=headers).json()
     df_stypes = json_normalize(response['statisticalCodeTypes'])
     # Create an editable grid of the uploaded CSV data
     builder = GridOptionsBuilder.from_dataframe(df)
@@ -97,12 +108,12 @@ def stat_types():
 
 
 
-        poststypes = st.button('Create Statistical Types', on_click=post_stat_types, args=[df, headers])
+        poststypes = st.button('Create Statistical Types', on_click=post_stat_types, args=[df, headers, okapi])
         if poststypes:
             st.success('Statistical Types are Created')
             st.session_state.activatebtn = False
 
-        postcodes = st.button('Create Statistical Codes', on_click=post_stat_codes, args=[statcodesdf, headers],disabled=st.session_state.activatebtn)
+        postcodes = st.button('Create Statistical Codes', on_click=post_stat_codes, args=[statcodesdf, headers, okapi],disabled=st.session_state.activatebtn)
         if postcodes:
             st.success('Statistical Codes are Created')
             st.session_state.activatebtn = True
