@@ -165,12 +165,24 @@ def generate_excel_template():
 def download_template_button():
     """
     Creates a download button in Streamlit for the Excel template
+    Generates a fresh template with all 14 sheets including:
+    Material_Types, Statistical_Codes, Item_status, User_groups, Location, 
+    Calendar, Calendar Exceptions, Department, FeeFineOwner, FeeFine, 
+    Waives, ManualCharges, PaymentMethods, Refunds
     """
+    # Generate fresh template each time (no caching)
     template_file = generate_excel_template()
+    # Get the bytes data - this ensures we're not passing a cached BytesIO object
+    template_bytes = template_file.getvalue()
+    
+    # Add version to filename to help with browser caching issues
+    import datetime
+    version = datetime.datetime.now().strftime("%Y%m%d")
+    
     st.download_button(
-        label="📥 Download Excel Template",
-        data=template_file,
-        file_name="Advanced_Configuration_Template.xlsx",
+        label="📥 Download Excel Template (14 Sheets)",
+        data=template_bytes,
+        file_name=f"Advanced_Configuration_Template_v{version}.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        help="Download the Excel template with all required sheets and sample columns"
+        help="Download the Excel template with all 14 required sheets including Waives, ManualCharges, PaymentMethods, and Refunds"
     )
