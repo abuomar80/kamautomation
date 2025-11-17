@@ -10,12 +10,13 @@ legacy_session_state()
 
 # Initialize tenant-related session state variables if not set
 # Check both widget-bound keys and copied keys (from form submission)
-if 'tenant' not in st.session_state or not st.session_state.get('tenant'):
+# Use .get() to safely check and initialize values
+if not st.session_state.get('tenant'):
     st.session_state['tenant'] = st.session_state.get('tenant_name', '')
-if 'okapi' not in st.session_state or not st.session_state.get('okapi'):
+if not st.session_state.get('okapi'):
     st.session_state['okapi'] = st.session_state.get('okapi_url', '')
-if 'token' not in st.session_state:
-    st.session_state['token'] = st.session_state.get('token')
+if not st.session_state.get('token'):
+    st.session_state['token'] = st.session_state.get('token', '')
 
 def dept():
     st.title("Departments")
