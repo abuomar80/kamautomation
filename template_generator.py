@@ -171,6 +171,7 @@ def generate_excel_template():
             'description': ['Standard loan policy for regular items', 'Short term loan policy for high-demand items'],
             'loanable': [True, True],
             'renewable': [True, True],
+            'unlimitedRenewals': [False, False],  # New column for unlimited renewals
             'profileId': ['Rolling', 'Rolling'],
             'periodDuration': [15, 7],
             'periodIntervalId': ['Days', 'Days'],
@@ -178,8 +179,8 @@ def generate_excel_template():
             'gracePeriodDuration': [3, 1],
             'gracePeriodIntervalId': ['Days', 'Days'],
             'itemLimit': ['5', '3'],
-            'numberAllowed': ['3', '1'],
-            'renewFromId': ['CURRENT_DUE_DATE', 'CURRENT_DUE_DATE'],
+            'numberAllowed': ['3', '1'],  # Required only if unlimitedRenewals is False
+            'renewFromId': ['CURRENT_DUE_DATE', 'CURRENT_DUE_DATE'],  # Required only if unlimitedRenewals is False
             'id': ['', '']  # Leave empty to auto-generate
         })
         loan_policies_df.to_excel(writer, sheet_name='LoanPolicies', index=False)
@@ -191,11 +192,17 @@ def generate_excel_template():
         # Define dropdown options based on the screenshot
         interval_options = "Minutes,Hours,Days,Weeks,Months"
         renew_from_options = "CURRENT_DUE_DATE,SYSTEM_DATE"
+        closed_library_options = "KEEP_CURRENT_DATE,END_OF_THE_PREVIOUS_OPEN_DAY,END_OF_THE_NEXT_OPEN_DAY"
+        boolean_options = "TRUE,FALSE"
         
         # Find column indices
         period_interval_col = None
         grace_period_interval_col = None
         renew_from_col = None
+        closed_library_col = None
+        renewable_col = None
+        unlimited_renewals_col = None
+        number_allowed_col = None
         
         for idx, col in enumerate(loan_policies_df.columns, start=1):
             if col == 'periodIntervalId':
@@ -204,6 +211,14 @@ def generate_excel_template():
                 grace_period_interval_col = idx
             elif col == 'renewFromId':
                 renew_from_col = idx
+            elif col == 'closedLibraryDueDateManagementId':
+                closed_library_col = idx
+            elif col == 'renewable':
+                renewable_col = idx
+            elif col == 'unlimitedRenewals':
+                unlimited_renewals_col = idx
+            elif col == 'numberAllowed':
+                number_allowed_col = idx
         
         # Add data validation for periodIntervalId
         if period_interval_col:
@@ -229,6 +244,50 @@ def generate_excel_template():
             renew_from_dv = DataValidation(type="list", formula1=f'"{renew_from_options}"', allow_blank=True)
             renew_from_dv.add(f"{col_letter}2:{col_letter}{max_row}")
             worksheet.add_data_validation(renew_from_dv)
+        
+        # Add data validation for closedLibraryDueDateManagementId
+        if closed_library_col:
+            max_row = max(len(loan_policies_df) + 1, 1000)
+            col_letter = worksheet.cell(2, closed_library_col).column_letter
+            closed_library_dv = DataValidation(type="list", formula1=f'"{closed_library_options}"', allow_blank=True)
+            closed_library_dv.add(f"{col_letter}2:{col_letter}{max_row}")
+            worksheet.add_data_validation(closed_library_dv)
+        
+        # Add data validation for renewable (true/false)
+        if renewable_col:
+            max_row = max(len(loan_policies_df) + 1, 1000)
+            col_letter = worksheet.cell(2, renewable_col).column_letter
+            renewable_dv = DataValidation(type="list", formula1=f'"{boolean_options}"', allow_blank=True)
+            renewable_dv.add(f"{col_letter}2:{col_letter}{max_row}")
+            worksheet.add_data_validation(renewable_dv)
+        
+        # Add data validation for unlimitedRenewals (true/false)
+        if unlimited_renewals_col:
+            max_row = max(len(loan_policies_df) + 1, 1000)
+            col_letter = worksheet.cell(2, unlimited_renewals_col).column_letter
+            unlimited_renewals_dv = DataValidation(type="list", formula1=f'"{boolean_options}"', allow_blank=True)
+            unlimited_renewals_dv.add(f"{col_letter}2:{col_letter}{max_row}")
+            worksheet.add_data_validation(unlimited_renewals_dv)
+        
+        # Add conditional validation for numberAllowed and renewFromId
+        # These should be optional if unlimitedRenewals is TRUE
+        # Note: Excel doesn't support dynamic validation based on other cells directly,
+        # but we'll allow blank values and handle validation in the Python code
+        if number_allowed_col:
+            max_row = max(len(loan_policies_df) + 1, 1000)
+            col_letter = worksheet.cell(2, number_allowed_col).column_letter
+            # Allow numeric values or blank (blank if unlimitedRenewals is TRUE)
+            number_allowed_dv = DataValidation(type="whole", operator="greaterThanOrEqual", formula1="0", allow_blank=True)
+            number_allowed_dv.add(f"{col_letter}2:{col_letter}{max_row}")
+            worksheet.add_data_validation(number_allowed_dv)
+        
+        if renew_from_col:
+            max_row = max(len(loan_policies_df) + 1, 1000)
+            col_letter = worksheet.cell(2, renew_from_col).column_letter
+            # Allow dropdown values or blank (blank if unlimitedRenewals is TRUE)
+            renew_from_dv = DataValidation(type="list", formula1=f'"{renew_from_options}"', allow_blank=True)
+            renew_from_dv.add(f"{col_letter}2:{col_letter}{max_row}")
+            worksheet.add_data_validation(renew_from_dv)
     
     output.seek(0)
     return output
@@ -242,9 +301,13 @@ def download_template_button():
     Waives, PaymentMethods, Refunds, LoanPolicies
     
     Note: The template includes data validation dropdowns for:
+    - renewable (TRUE, FALSE)
+    - unlimitedRenewals (TRUE, FALSE) - if TRUE, numberAllowed and renewFromId are optional
     - periodIntervalId (Minutes, Hours, Days, Weeks, Months)
     - gracePeriodIntervalId (Minutes, Hours, Days, Weeks, Months)
-    - renewFromId (CURRENT_DUE_DATE, SYSTEM_DATE)
+    - renewFromId (CURRENT_DUE_DATE, SYSTEM_DATE) - optional if unlimitedRenewals is TRUE
+    - closedLibraryDueDateManagementId (KEEP_CURRENT_DATE, END_OF_THE_PREVIOUS_OPEN_DAY, END_OF_THE_NEXT_OPEN_DAY)
+    - numberAllowed (numeric, >= 0) - optional if unlimitedRenewals is TRUE
     """
     import datetime
     import time

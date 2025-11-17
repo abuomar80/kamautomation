@@ -106,9 +106,10 @@ with st.expander("📥 Download Excel Template", expanded=False):
     13. **Refunds** - Columns: `nameReason` (required), `id` (optional, leave empty to auto-generate)
        - Each row creates one refund record
        - Loops through all rows to create multiple refunds
-    14. **LoanPolicies** - Columns: `name` (required), `description` (optional), `loanable` (true/false), `renewable` (true/false), `profileId` (e.g., "Rolling"), `periodDuration` (numeric), `periodIntervalId` ("Days"/"Weeks"/"Months"), `closedLibraryDueDateManagementId`, `gracePeriodDuration` (numeric), `gracePeriodIntervalId` ("Days"/"Weeks"/"Months"), `itemLimit` (numeric as string), `numberAllowed` (numeric as string), `renewFromId` ("CURRENT_DUE_DATE"/"SYSTEM_DATE"), `id` (optional UUID)
+    14. **LoanPolicies** - Columns: `name` (required), `description` (optional), `loanable` (true/false), `renewable` (true/false), `unlimitedRenewals` (true/false), `profileId` (e.g., "Rolling"), `periodDuration` (numeric), `periodIntervalId` ("Days"/"Weeks"/"Months"), `closedLibraryDueDateManagementId`, `gracePeriodDuration` (numeric), `gracePeriodIntervalId` ("Days"/"Weeks"/"Months"), `itemLimit` (numeric as string), `numberAllowed` (numeric as string, optional if unlimitedRenewals is true), `renewFromId` ("CURRENT_DUE_DATE"/"SYSTEM_DATE", optional if unlimitedRenewals is true), `id` (optional UUID)
        - Each row creates one loan policy record
        - Complex nested structure for loansPolicy and renewalsPolicy
+       - ⚠️ **Note:** If `unlimitedRenewals` is TRUE, then `numberAllowed` and `renewFromId` are not required
     """)
 
 tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10, tab11, tab12, tab13, tab14, tab15 = st.tabs(["Upload", "Material Types", "Statistical Codes", "User Groups",

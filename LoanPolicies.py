@@ -124,7 +124,7 @@ def loan_policies():
         df['description'] = df['description'].astype(str).str.strip()
     
     # Display the data in an editable grid
-    display_columns = ['name', 'description', 'loanable', 'renewable', 'profileId', 'periodDuration', 
+    display_columns = ['name', 'description', 'loanable', 'renewable', 'unlimitedRenewals', 'profileId', 'periodDuration', 
                        'periodIntervalId', 'closedLibraryDueDateManagementId', 'gracePeriodDuration', 
                        'gracePeriodIntervalId', 'itemLimit', 'numberAllowed', 'renewFromId', 'id']
     display_columns = [col for col in display_columns if col in df.columns]
@@ -211,13 +211,22 @@ def loan_policies():
                             policy_data['loansPolicy'] = loans_policy
                         
                         # Build renewalsPolicy object
-                        renewals_policy = {}
-                        if pd.notna(row.get('numberAllowed')):
-                            renewals_policy['numberAllowed'] = str(int(float(row['numberAllowed'])))
-                        if pd.notna(row.get('renewFromId')):
-                            renewals_policy['renewFromId'] = str(row['renewFromId']).strip()
+                        # Check if unlimited renewals is enabled
+                        unlimited_renewals = False
+                        if pd.notna(row.get('unlimitedRenewals')):
+                            unlimited_renewals = bool(row['unlimitedRenewals']) if isinstance(row['unlimitedRenewals'], bool) else str(row['unlimitedRenewals']).upper() == 'TRUE'
                         
-                        if renewals_policy:
+                        renewals_policy = {}
+                        # Only add numberAllowed and renewFromId if unlimited renewals is FALSE
+                        if not unlimited_renewals:
+                            if pd.notna(row.get('numberAllowed')):
+                                renewals_policy['numberAllowed'] = str(int(float(row['numberAllowed'])))
+                            if pd.notna(row.get('renewFromId')):
+                                renewals_policy['renewFromId'] = str(row['renewFromId']).strip()
+                        # If unlimited renewals is TRUE, don't include numberAllowed or renewFromId
+                        
+                        if renewals_policy or unlimited_renewals:
+                            # Include renewalsPolicy even if empty when unlimited renewals is true
                             policy_data['renewalsPolicy'] = renewals_policy
                         
                         # ID (optional)
