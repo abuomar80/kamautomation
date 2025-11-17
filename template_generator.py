@@ -199,14 +199,15 @@ def download_template_button():
     # Get the bytes data - this ensures we're not passing a cached BytesIO object
     template_bytes = template_file.getvalue()
     
-    # Add version to filename to help with browser caching issues
+    # Add timestamp to filename to help with browser caching issues
     import datetime
-    version = datetime.datetime.now().strftime("%Y%m%d")
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     
     st.download_button(
         label="📥 Download Excel Template (14 Sheets)",
         data=template_bytes,
-        file_name=f"Advanced_Configuration_Template_v{version}.xlsx",
+        file_name=f"Advanced_Configuration_Template_{timestamp}.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        help="Download the Excel template with all 14 required sheets including Waives, PaymentMethods, Refunds, and LoanPolicies"
+        help="Download the Excel template with all 14 required sheets including Waives, PaymentMethods, Refunds, and LoanPolicies",
+        key=f"download_template_{timestamp}"  # Unique key to prevent caching
     )
