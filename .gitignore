@@ -71,6 +71,7 @@ wheels/
 # Excel uploads (may contain sensitive data)
 *.xlsx
 *.xls
+Advanced_Configuration_Template*.xlsx
 # Backup files
 *.json.bak
 backups/
