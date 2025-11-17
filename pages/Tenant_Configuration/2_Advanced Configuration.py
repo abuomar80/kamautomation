@@ -12,6 +12,7 @@ from FeeFine import fee_fine
 from Waives import waives
 from PaymentMethods import payment_methods
 from Refunds import refunds
+from LoanPolicies import loan_policies
 from legacy_session_state import legacy_session_state
 from template_generator import download_template_button
 from extras import send_completion_email
@@ -105,10 +106,13 @@ with st.expander("📥 Download Excel Template", expanded=False):
     13. **Refunds** - Columns: `nameReason` (required), `id` (optional, leave empty to auto-generate)
        - Each row creates one refund record
        - Loops through all rows to create multiple refunds
+    14. **LoanPolicies** - Columns: `name` (required), `description` (optional), `loanable` (true/false), `renewable` (true/false), `profileId` (e.g., "Rolling"), `periodDuration` (numeric), `periodIntervalId` ("Days"/"Weeks"/"Months"), `closedLibraryDueDateManagementId`, `gracePeriodDuration` (numeric), `gracePeriodIntervalId` ("Days"/"Weeks"/"Months"), `itemLimit` (numeric as string), `numberAllowed` (numeric as string), `renewFromId` ("CURRENT_DUE_DATE"/"SYSTEM_DATE"), `id` (optional UUID)
+       - Each row creates one loan policy record
+       - Complex nested structure for loansPolicy and renewalsPolicy
     """)
 
-tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10, tab11, tab12, tab13, tab14 = st.tabs(["Upload", "Material Types", "Statistical Codes", "User Groups",
-                                                          "Location", "Departments", "Calendar", "Exceptions", "Configuration Columns", "Fee/Fine Owner", "Fee/Fine", "Waives", "Payment Methods", "Refunds"])
+tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10, tab11, tab12, tab13, tab14, tab15 = st.tabs(["Upload", "Material Types", "Statistical Codes", "User Groups",
+                                                          "Location", "Departments", "Calendar", "Exceptions", "Configuration Columns", "Fee/Fine Owner", "Fee/Fine", "Waives", "Payment Methods", "Refunds", "Loan Policies"])
 
 with tab1:
     if st.session_state.allow_tenant:
@@ -219,6 +223,13 @@ with tab14:
     else:
         st.warning("Please Connect to Tenant First.")
 
+with tab15:
+    if st.session_state.allow_tenant:
+        if st.session_state.profiling is not None and st.session_state['key'] is True:
+            loan_policies()
+    else:
+        st.warning("Please Connect to Tenant First.")
+
 # Completion Notification Section
 st.markdown("---")
 if st.session_state.allow_tenant:
@@ -246,6 +257,7 @@ if st.session_state.allow_tenant:
             configured_items.append("✅ Waives configured")
             configured_items.append("✅ Payment Methods configured")
             configured_items.append("✅ Refunds configured")
+            configured_items.append("✅ Loan Policies configured")
         else:
             configured_items.append("⚠️ Please ensure all tabs are completed before sending notification")
         

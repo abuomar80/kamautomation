@@ -148,6 +148,40 @@ def generate_excel_template():
             'id': ['', '']  # Leave empty to auto-generate
         })
         refunds_df.to_excel(writer, sheet_name='Refunds', index=False)
+        
+        # Sheet 14: LoanPolicies
+        # Complex structure with nested objects for loansPolicy and renewalsPolicy
+        # name: policy name (required)
+        # description: policy description (optional)
+        # loanable: boolean (true/false, default: true)
+        # renewable: boolean (true/false, default: true)
+        # profileId: loan profile ID (e.g., "Rolling", default: "Rolling")
+        # periodDuration: loan period duration in days/weeks/months (numeric)
+        # periodIntervalId: period interval ("Days", "Weeks", "Months")
+        # closedLibraryDueDateManagementId: closed library due date management (e.g., "END_OF_THE_NEXT_OPEN_DAY")
+        # gracePeriodDuration: grace period duration (numeric)
+        # gracePeriodIntervalId: grace period interval ("Days", "Weeks", "Months")
+        # itemLimit: maximum number of items (numeric, as string)
+        # numberAllowed: number of renewals allowed (numeric, as string)
+        # renewFromId: renewal from date ("CURRENT_DUE_DATE" or "SYSTEM_DATE")
+        # id: optional UUID (leave empty to auto-generate)
+        loan_policies_df = pd.DataFrame({
+            'name': ['Standard Loan Policy', 'Short Term Loan Policy'],
+            'description': ['Standard loan policy for regular items', 'Short term loan policy for high-demand items'],
+            'loanable': [True, True],
+            'renewable': [True, True],
+            'profileId': ['Rolling', 'Rolling'],
+            'periodDuration': [15, 7],
+            'periodIntervalId': ['Days', 'Days'],
+            'closedLibraryDueDateManagementId': ['END_OF_THE_NEXT_OPEN_DAY', 'END_OF_THE_NEXT_OPEN_DAY'],
+            'gracePeriodDuration': [3, 1],
+            'gracePeriodIntervalId': ['Days', 'Days'],
+            'itemLimit': ['5', '3'],
+            'numberAllowed': ['3', '1'],
+            'renewFromId': ['CURRENT_DUE_DATE', 'CURRENT_DUE_DATE'],
+            'id': ['', '']  # Leave empty to auto-generate
+        })
+        loan_policies_df.to_excel(writer, sheet_name='LoanPolicies', index=False)
     
     output.seek(0)
     return output
@@ -155,10 +189,10 @@ def generate_excel_template():
 def download_template_button():
     """
     Creates a download button in Streamlit for the Excel template
-    Generates a fresh template with all 13 sheets including:
+    Generates a fresh template with all 14 sheets including:
     Material_Types, Statistical_Codes, Item_status, User_groups, Location, 
     Calendar, Calendar Exceptions, Department, FeeFineOwner, FeeFine, 
-    Waives, PaymentMethods, Refunds
+    Waives, PaymentMethods, Refunds, LoanPolicies
     """
     # Generate fresh template each time (no caching)
     template_file = generate_excel_template()
@@ -170,9 +204,9 @@ def download_template_button():
     version = datetime.datetime.now().strftime("%Y%m%d")
     
     st.download_button(
-        label="📥 Download Excel Template (13 Sheets)",
+        label="📥 Download Excel Template (14 Sheets)",
         data=template_bytes,
         file_name=f"Advanced_Configuration_Template_v{version}.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        help="Download the Excel template with all 13 required sheets including Waives, PaymentMethods, and Refunds"
+        help="Download the Excel template with all 14 required sheets including Waives, PaymentMethods, Refunds, and LoanPolicies"
     )
