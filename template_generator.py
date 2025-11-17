@@ -311,6 +311,20 @@ def download_template_button():
     """
     import datetime
     import time
+    import re
+    
+    # Get tenant name from session state
+    tenant_name = st.session_state.get('tenant') or st.session_state.get('tenant_name', '')
+    
+    # Clean tenant name for filename (remove invalid characters)
+    if tenant_name:
+        # Replace invalid filename characters with underscore
+        tenant_name = re.sub(r'[<>:"/\\|?*]', '_', str(tenant_name))
+        tenant_name = tenant_name.strip()
+        # Add prefix with separator
+        tenant_prefix = f"{tenant_name}____"
+    else:
+        tenant_prefix = ""
     
     # Generate fresh template each time (no caching)
     # Force regeneration by adding a small delay to ensure unique timestamp
@@ -326,10 +340,13 @@ def download_template_button():
     # Use a unique key that changes each time to prevent Streamlit caching
     unique_key = f"download_template_{timestamp}_{time.time()}"
     
+    # Build filename with tenant prefix
+    file_name = f"{tenant_prefix}Advanced_Configuration_Template_{timestamp}.xlsx"
+    
     st.download_button(
         label="📥 Download Excel Template (14 Sheets with Data Validation)",
         data=template_bytes,
-        file_name=f"Advanced_Configuration_Template_{timestamp}.xlsx",
+        file_name=file_name,
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         help="Download the Excel template with all 14 required sheets including data validation dropdowns for LoanPolicies fields",
         key=unique_key  # Unique key to prevent caching
