@@ -125,17 +125,7 @@ def generate_excel_template():
         })
         waives_df.to_excel(writer, sheet_name='Waives', index=False)
         
-        # Sheet 12: ManualCharges
-        # nameReason: reason for manual charge (required)
-        # id: optional UUID (leave empty to auto-generate)
-        # Each row creates one manual charge record
-        manual_charges_df = pd.DataFrame({
-            'nameReason': ['Processing Fee', 'Replacement Fee'],
-            'id': ['', '']  # Leave empty to auto-generate
-        })
-        manual_charges_df.to_excel(writer, sheet_name='ManualCharges', index=False)
-        
-        # Sheet 13: PaymentMethods
+        # Sheet 12: PaymentMethods
         # nameMethod: payment method name (required)
         # allowedRefundMethod: boolean (optional, default: false)
         # owner: references Owner from FeeFineOwner sheet (required)
@@ -149,7 +139,7 @@ def generate_excel_template():
         })
         payment_methods_df.to_excel(writer, sheet_name='PaymentMethods', index=False)
         
-        # Sheet 14: Refunds
+        # Sheet 13: Refunds
         # nameReason: reason for refund (required)
         # id: optional UUID (leave empty to auto-generate)
         # Each row creates one refund record
@@ -165,10 +155,10 @@ def generate_excel_template():
 def download_template_button():
     """
     Creates a download button in Streamlit for the Excel template
-    Generates a fresh template with all 14 sheets including:
+    Generates a fresh template with all 13 sheets including:
     Material_Types, Statistical_Codes, Item_status, User_groups, Location, 
     Calendar, Calendar Exceptions, Department, FeeFineOwner, FeeFine, 
-    Waives, ManualCharges, PaymentMethods, Refunds
+    Waives, PaymentMethods, Refunds
     """
     # Generate fresh template each time (no caching)
     template_file = generate_excel_template()
@@ -180,9 +170,9 @@ def download_template_button():
     version = datetime.datetime.now().strftime("%Y%m%d")
     
     st.download_button(
-        label="📥 Download Excel Template (14 Sheets)",
+        label="📥 Download Excel Template (13 Sheets)",
         data=template_bytes,
         file_name=f"Advanced_Configuration_Template_v{version}.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        help="Download the Excel template with all 14 required sheets including Waives, ManualCharges, PaymentMethods, and Refunds"
+        help="Download the Excel template with all 13 required sheets including Waives, PaymentMethods, and Refunds"
     )

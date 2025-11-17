@@ -10,7 +10,6 @@ from Column_Configuration import columns_config
 from FeeFineOwner import fee_fine_owner
 from FeeFine import fee_fine
 from Waives import waives
-from ManualCharges import manual_charges
 from PaymentMethods import payment_methods
 from Refunds import refunds
 from legacy_session_state import legacy_session_state
@@ -98,21 +97,18 @@ with st.expander("📥 Download Excel Template", expanded=False):
     11. **Waives** - Columns: `nameReason` (required), `id` (optional, leave empty to auto-generate)
        - Each row creates one waive record
        - Loops through all rows to create multiple waives
-    12. **ManualCharges** - Columns: `nameReason` (required), `id` (optional, leave empty to auto-generate)
-       - Each row creates one manual charge record
-       - Loops through all rows to create multiple manual charges
-    13. **PaymentMethods** - Columns: `nameMethod` (required), `allowedRefundMethod` (optional, true/false, default: false), `owner` (required, references Owner from FeeFineOwner sheet), `id` (optional, leave empty to auto-generate)
+    12. **PaymentMethods** - Columns: `nameMethod` (required), `allowedRefundMethod` (optional, true/false, default: false), `owner` (required, references Owner from FeeFineOwner sheet), `id` (optional, leave empty to auto-generate)
        - ⚠️ **Note:** Payment methods require owners to be created first (complete Fee/Fine Owner tab)
        - The `owner` column should match the `Owner` values from the FeeFineOwner sheet
        - Each row creates one payment method record
        - Loops through all rows to create multiple payment methods
-    14. **Refunds** - Columns: `nameReason` (required), `id` (optional, leave empty to auto-generate)
+    13. **Refunds** - Columns: `nameReason` (required), `id` (optional, leave empty to auto-generate)
        - Each row creates one refund record
        - Loops through all rows to create multiple refunds
     """)
 
-tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10, tab11, tab12, tab13, tab14, tab15 = st.tabs(["Upload", "Material Types", "Statistical Codes", "User Groups",
-                                                          "Location", "Departments", "Calendar", "Exceptions", "Configuration Columns", "Fee/Fine Owner", "Fee/Fine", "Waives", "Manual Charges", "Payment Methods", "Refunds"])
+tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10, tab11, tab12, tab13, tab14 = st.tabs(["Upload", "Material Types", "Statistical Codes", "User Groups",
+                                                          "Location", "Departments", "Calendar", "Exceptions", "Configuration Columns", "Fee/Fine Owner", "Fee/Fine", "Waives", "Payment Methods", "Refunds"])
 
 with tab1:
     if st.session_state.allow_tenant:
@@ -211,19 +207,12 @@ with tab12:
 with tab13:
     if st.session_state.allow_tenant:
         if st.session_state.profiling is not None and st.session_state['key'] is True:
-            manual_charges()
-    else:
-        st.warning("Please Connect to Tenant First.")
-
-with tab14:
-    if st.session_state.allow_tenant:
-        if st.session_state.profiling is not None and st.session_state['key'] is True:
             # Check if Fee/Fine Owner tab has been completed (owners exist)
             payment_methods()
     else:
         st.warning("Please Connect to Tenant First.")
 
-with tab15:
+with tab14:
     if st.session_state.allow_tenant:
         if st.session_state.profiling is not None and st.session_state['key'] is True:
             refunds()
@@ -255,7 +244,6 @@ if st.session_state.allow_tenant:
             configured_items.append("✅ Fee/Fine Owner configured")
             configured_items.append("✅ Fee/Fine configured")
             configured_items.append("✅ Waives configured")
-            configured_items.append("✅ Manual Charges configured")
             configured_items.append("✅ Payment Methods configured")
             configured_items.append("✅ Refunds configured")
         else:
