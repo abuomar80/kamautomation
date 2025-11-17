@@ -5,6 +5,7 @@ This module creates a downloadable Excel template with all required sheets and c
 import pandas as pd
 import streamlit as st
 from io import BytesIO
+from openpyxl.worksheet.datavalidation import DataValidation
 
 def generate_excel_template():
     """
@@ -182,6 +183,52 @@ def generate_excel_template():
             'id': ['', '']  # Leave empty to auto-generate
         })
         loan_policies_df.to_excel(writer, sheet_name='LoanPolicies', index=False)
+        
+        # Access the workbook to add data validation (while still in context manager)
+        workbook = writer.book
+        worksheet = workbook['LoanPolicies']
+        
+        # Define dropdown options based on the screenshot
+        interval_options = "Minutes,Hours,Days,Weeks,Months"
+        renew_from_options = "CURRENT_DUE_DATE,SYSTEM_DATE"
+        
+        # Find column indices
+        period_interval_col = None
+        grace_period_interval_col = None
+        renew_from_col = None
+        
+        for idx, col in enumerate(loan_policies_df.columns, start=1):
+            if col == 'periodIntervalId':
+                period_interval_col = idx
+            elif col == 'gracePeriodIntervalId':
+                grace_period_interval_col = idx
+            elif col == 'renewFromId':
+                renew_from_col = idx
+        
+        # Add data validation for periodIntervalId
+        if period_interval_col:
+            # Apply to all rows (starting from row 2, excluding header) and extend to row 1000 for future entries
+            max_row = max(len(loan_policies_df) + 1, 1000)
+            col_letter = worksheet.cell(2, period_interval_col).column_letter
+            period_interval_dv = DataValidation(type="list", formula1=f'"{interval_options}"', allow_blank=True)
+            period_interval_dv.add(f"{col_letter}2:{col_letter}{max_row}")
+            worksheet.add_data_validation(period_interval_dv)
+        
+        # Add data validation for gracePeriodIntervalId
+        if grace_period_interval_col:
+            max_row = max(len(loan_policies_df) + 1, 1000)
+            col_letter = worksheet.cell(2, grace_period_interval_col).column_letter
+            grace_period_interval_dv = DataValidation(type="list", formula1=f'"{interval_options}"', allow_blank=True)
+            grace_period_interval_dv.add(f"{col_letter}2:{col_letter}{max_row}")
+            worksheet.add_data_validation(grace_period_interval_dv)
+        
+        # Add data validation for renewFromId
+        if renew_from_col:
+            max_row = max(len(loan_policies_df) + 1, 1000)
+            col_letter = worksheet.cell(2, renew_from_col).column_letter
+            renew_from_dv = DataValidation(type="list", formula1=f'"{renew_from_options}"', allow_blank=True)
+            renew_from_dv.add(f"{col_letter}2:{col_letter}{max_row}")
+            worksheet.add_data_validation(renew_from_dv)
     
     output.seek(0)
     return output
