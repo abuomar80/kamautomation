@@ -240,21 +240,34 @@ def download_template_button():
     Material_Types, Statistical_Codes, Item_status, User_groups, Location, 
     Calendar, Calendar Exceptions, Department, FeeFineOwner, FeeFine, 
     Waives, PaymentMethods, Refunds, LoanPolicies
+    
+    Note: The template includes data validation dropdowns for:
+    - periodIntervalId (Minutes, Hours, Days, Weeks, Months)
+    - gracePeriodIntervalId (Minutes, Hours, Days, Weeks, Months)
+    - renewFromId (CURRENT_DUE_DATE, SYSTEM_DATE)
     """
+    import datetime
+    import time
+    
     # Generate fresh template each time (no caching)
+    # Force regeneration by adding a small delay to ensure unique timestamp
+    time.sleep(0.01)  # Small delay to ensure unique timestamp
     template_file = generate_excel_template()
+    
     # Get the bytes data - this ensures we're not passing a cached BytesIO object
     template_bytes = template_file.getvalue()
     
-    # Add timestamp to filename to help with browser caching issues
-    import datetime
-    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    # Add timestamp with microseconds to filename to help with browser caching issues
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+    
+    # Use a unique key that changes each time to prevent Streamlit caching
+    unique_key = f"download_template_{timestamp}_{time.time()}"
     
     st.download_button(
-        label="📥 Download Excel Template (14 Sheets)",
+        label="📥 Download Excel Template (14 Sheets with Data Validation)",
         data=template_bytes,
         file_name=f"Advanced_Configuration_Template_{timestamp}.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        help="Download the Excel template with all 14 required sheets including Waives, PaymentMethods, Refunds, and LoanPolicies",
-        key=f"download_template_{timestamp}"  # Unique key to prevent caching
+        help="Download the Excel template with all 14 required sheets including data validation dropdowns for LoanPolicies fields",
+        key=unique_key  # Unique key to prevent caching
     )
