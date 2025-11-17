@@ -8,9 +8,29 @@ from legacy_session_state import legacy_session_state
 
 legacy_session_state()
 
+# Initialize tenant-related session state variables if not set
+# Check both widget-bound keys and copied keys (from form submission)
+if 'tenant' not in st.session_state or not st.session_state.get('tenant'):
+    st.session_state['tenant'] = st.session_state.get('tenant_name', '')
+if 'okapi' not in st.session_state or not st.session_state.get('okapi'):
+    st.session_state['okapi'] = st.session_state.get('okapi_url', '')
+if 'token' not in st.session_state:
+    st.session_state['token'] = st.session_state.get('token')
+
 def dept():
     st.title("Departments")
-    headers = {"x-okapi-tenant": f"{st.session_state.tenant}", "x-okapi-token": f"{st.session_state.token}"}
+    
+    # Get tenant connection details with fallbacks
+    tenant = st.session_state.get("tenant") or st.session_state.get("tenant_name")
+    token = st.session_state.get("token")
+    okapi = st.session_state.get("okapi") or st.session_state.get("okapi_url")
+
+    if not all([tenant, token, okapi]):
+        st.error("⚠️ Tenant connection information is missing. Please connect to a tenant first.")
+        st.info("Go to the Tenant page, enter connection details, click Connect, then return here.")
+        return
+    
+    headers = {"x-okapi-tenant": f"{tenant}", "x-okapi-token": f"{token}"}
     file = upload('Department')
 
     builder = GridOptionsBuilder.from_dataframe(file)
@@ -38,7 +58,7 @@ def dept():
                         "name": row["Name"],
                         "code": row["Code"]
                     }
-                    res = requests.post(f'{st.session_state.okapi}/departments', data=json.dumps(data), headers=headers)
+                    res = requests.post(f'{okapi}/departments', data=json.dumps(data), headers=headers)
                     
                     # Handle response - check for errors
                     if res.status_code not in [201, 422]:  # 422 = already exists (OK)

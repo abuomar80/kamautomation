@@ -7,9 +7,18 @@ from legacy_session_state import legacy_session_state
 # Get session state of legacy session
 legacy_session_state()
 
-def create_sp(sp_name,sp_code,disp_name,desc):
-    spurl=f'{st.session_state.okapi}/service-points'
-    headers = {"x-okapi-tenant": f"{st.session_state.tenant}", "x-okapi-token": f"{st.session_state.token}"}
+# Initialize tenant-related session state variables if not set
+# Check both widget-bound keys and copied keys (from form submission)
+if 'tenant' not in st.session_state or not st.session_state.get('tenant'):
+    st.session_state['tenant'] = st.session_state.get('tenant_name', '')
+if 'okapi' not in st.session_state or not st.session_state.get('okapi'):
+    st.session_state['okapi'] = st.session_state.get('okapi_url', '')
+if 'token' not in st.session_state:
+    st.session_state['token'] = st.session_state.get('token')
+
+def create_sp(sp_name,sp_code,disp_name,desc,okapi,tenant,token):
+    spurl=f'{okapi}/service-points'
+    headers = {"x-okapi-tenant": f"{tenant}", "x-okapi-token": f"{token}"}
     to_do= {
   "name" : f"{sp_name}",
   "code" : f"{sp_code}",
@@ -42,9 +51,9 @@ def create_sp(sp_name,sp_code,disp_name,desc):
         except:
             pass
         return False, f"Error creating Service Point '{sp_name}' (Status: {response.status_code})"
-def create_institutions(inistname,insticode):
-    insurl=f'{st.session_state.okapi}/location-units/institutions'
-    headers = {"x-okapi-tenant": f"{st.session_state.tenant}", "x-okapi-token": f"{st.session_state.token}"}
+def create_institutions(inistname,insticode,okapi,tenant,token):
+    insurl=f'{okapi}/location-units/institutions'
+    headers = {"x-okapi-tenant": f"{tenant}", "x-okapi-token": f"{token}"}
     to_do={
   "name" : f"{inistname}",
   "code" : f"{insticode}"
@@ -60,9 +69,9 @@ def create_institutions(inistname,insticode):
             pass
     return True, None
 
-def create_campuses(campusname, campuscode, instuuid):
-    campusurl=f'{st.session_state.okapi}/location-units/campuses'
-    headers = {"x-okapi-tenant": f"{st.session_state.tenant}", "x-okapi-token": f"{st.session_state.token}"}
+def create_campuses(campusname, campuscode, instuuid,okapi,tenant,token):
+    campusurl=f'{okapi}/location-units/campuses'
+    headers = {"x-okapi-tenant": f"{tenant}", "x-okapi-token": f"{token}"}
     to_do={
   "name" : f"{campusname}",
   "code" : f"{campuscode}",
@@ -80,9 +89,9 @@ def create_campuses(campusname, campuscode, instuuid):
     return True, None
 
 
-def create_libraries(libraryname, librarycode, campusuuid):
-    liburl=f'{st.session_state.okapi}/location-units/libraries'
-    headers = {"x-okapi-tenant": f"{st.session_state.tenant}", "x-okapi-token": f"{st.session_state.token}"}
+def create_libraries(libraryname, librarycode, campusuuid,okapi,tenant,token):
+    liburl=f'{okapi}/location-units/libraries'
+    headers = {"x-okapi-tenant": f"{tenant}", "x-okapi-token": f"{token}"}
     to_do={
   "name" : f"{libraryname}",
   "code" : f"{librarycode}",
@@ -98,9 +107,9 @@ def create_libraries(libraryname, librarycode, campusuuid):
             pass
     return True, None
 
-def create_locations(locationname, locationcode, displayname, instuuid, campusuuid, libuuid, spprimaryuuid, splistuuid):
-    locurl=f'{st.session_state.okapi}/locations'
-    headers = {"x-okapi-tenant": f"{st.session_state.tenant}", "x-okapi-token": f"{st.session_state.token}"}
+def create_locations(locationname, locationcode, displayname, instuuid, campusuuid, libuuid, spprimaryuuid, splistuuid,okapi,tenant,token):
+    locurl=f'{okapi}/locations'
+    headers = {"x-okapi-tenant": f"{tenant}", "x-okapi-token": f"{token}"}
 
 
     to_do={

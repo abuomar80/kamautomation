@@ -5,14 +5,33 @@ from legacy_session_state import legacy_session_state
 
 legacy_session_state()
 
+# Initialize tenant-related session state variables if not set
+# Check both widget-bound keys and copied keys (from form submission)
+if 'tenant' not in st.session_state or not st.session_state.get('tenant'):
+    st.session_state['tenant'] = st.session_state.get('tenant_name', '')
+if 'okapi' not in st.session_state or not st.session_state.get('okapi'):
+    st.session_state['okapi'] = st.session_state.get('okapi_url', '')
+if 'token' not in st.session_state:
+    st.session_state['token'] = st.session_state.get('token')
+
 
 def send_notice():
+    # Get tenant connection details with fallbacks
+    tenant = st.session_state.get("tenant") or st.session_state.get("tenant_name")
+    token = st.session_state.get("token")
+    okapi = st.session_state.get("okapi") or st.session_state.get("okapi_url")
+
+    if not all([tenant, token, okapi]):
+        st.error("⚠️ Tenant connection information is missing. Please connect to a tenant first.")
+        st.info("Go to the Tenant page, enter connection details, click Connect, then return here.")
+        return
+    
     template_names=["Cancellation Notice","Item Available Notice","Recall Overdue Notice","Courtesy Notice",
                     "Check out Notice","Check in Notice","Hold Placed Notice","Page Request Notice","Recall Request Notice",
                     "Hold Expiration Notice","Request Expiration Notice","Recall Notice","Overdue Notice","Notice of Fine or Fee"]
     end_point_template_post = "templates"
-    url_template_post = f"{st.session_state.okapi}/{end_point_template_post}"
-    headers = {"x-okapi-tenant": f"{st.session_state.tenant}", "x-okapi-token": f"{st.session_state.token}"}
+    url_template_post = f"{okapi}/{end_point_template_post}"
+    headers = {"x-okapi-tenant": f"{tenant}", "x-okapi-token": f"{token}"}
 
     circ_template = []
     circ_template.append({
@@ -213,7 +232,7 @@ def send_notice():
         "category": "AutomatedFeeFine"
     })
 
-    respnotice = requests.get(f"{st.session_state.okapi}/templates?limit=1000", headers=headers)
+    respnotice = requests.get(f"{okapi}/templates?limit=1000", headers=headers)
     data = respnotice.json()
     templates = data['templates']
     # Response output suppressed - no need to display JSON response

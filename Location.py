@@ -8,10 +8,30 @@ from legacy_session_state import legacy_session_state
 
 legacy_session_state()
 
+# Initialize tenant-related session state variables if not set
+# Check both widget-bound keys and copied keys (from form submission)
+if 'tenant' not in st.session_state or not st.session_state.get('tenant'):
+    st.session_state['tenant'] = st.session_state.get('tenant_name', '')
+if 'okapi' not in st.session_state or not st.session_state.get('okapi'):
+    st.session_state['okapi'] = st.session_state.get('okapi_url', '')
+if 'token' not in st.session_state:
+    st.session_state['token'] = st.session_state.get('token')
+
 def loc():
 
     st.title("Location")
-    headers = {"x-okapi-tenant": f"{st.session_state.tenant}", "x-okapi-token": f"{st.session_state.token}"}
+    
+    # Get tenant connection details with fallbacks
+    tenant = st.session_state.get("tenant") or st.session_state.get("tenant_name")
+    token = st.session_state.get("token")
+    okapi = st.session_state.get("okapi") or st.session_state.get("okapi_url")
+
+    if not all([tenant, token, okapi]):
+        st.error("⚠️ Tenant connection information is missing. Please connect to a tenant first.")
+        st.info("Go to the Tenant page, enter connection details, click Connect, then return here.")
+        return
+    
+    headers = {"x-okapi-tenant": f"{tenant}", "x-okapi-token": f"{token}"}
     file = upload('Location')
 
     builder = GridOptionsBuilder.from_dataframe(file)
@@ -53,17 +73,17 @@ def loc():
                     location_code = str(row["LocationsCodes"]).strip()
 
                     name_result = requests.get(
-                        f"{st.session_state.okapi}/service-points?query=(name = {sp_name})",
+                        f"{okapi}/service-points?query=(name = {sp_name})",
                         headers=headers,
                     ).json()
                     code_result = requests.get(
-                        f"{st.session_state.okapi}/service-points?query=(code = {sp_code})",
+                        f"{okapi}/service-points?query=(code = {sp_code})",
                         headers=headers,
                     ).json()
                     empty = []
 
                     # Create service point and handle response (already exists = success, no message)
-                    success, error_msg = create_sp(sp_name, sp_code, sp_name, sp_name)
+                    success, error_msg = create_sp(sp_name, sp_code, sp_name, sp_name, okapi, tenant, token)
                     if not success and error_msg:
                         error_messages.append(error_msg)
                         st.warning(f"⚠️ Service Point '{sp_name}': {error_msg}")
@@ -71,45 +91,45 @@ def loc():
 
 
                     result = requests.get(
-                        f"{st.session_state.okapi}/location-units/institutions?query=(name=={institution_name})",
+                        f"{okapi}/location-units/institutions?query=(name=={institution_name})",
                         headers=headers).json()
 
                     if result['locinsts'] == empty:
-                        success, error_msg = create_institutions(institution_name, institution_code)
+                        success, error_msg = create_institutions(institution_name, institution_code, okapi, tenant, token)
                         if not success and error_msg:
                             st.warning(f"⚠️ Institution '{institution_name}': {error_msg}")
 
 
                     # GET INSTITUTION ID
                     result = requests.get(
-                        f"{st.session_state.okapi}/location-units/institutions?query=(name=={institution_name})",
+                        f"{okapi}/location-units/institutions?query=(name=={institution_name})",
                         headers=headers).json()
                     insID = result['locinsts'][0]['id']
 
 
                     result2 = requests.get(
-                        f"{st.session_state.okapi}/location-units/campuses?query=(name=={campus_name})",
+                        f"{okapi}/location-units/campuses?query=(name=={campus_name})",
                         headers=headers).json()
 
                     if result2['loccamps'] == empty:
-                        success, error_msg = create_campuses(campus_name, campus_code, insID)
+                        success, error_msg = create_campuses(campus_name, campus_code, insID, okapi, tenant, token)
                         if not success and error_msg:
                             st.warning(f"⚠️ Campus '{campus_name}': {error_msg}")
 
 
                     # CREATING LIBRARIES
                     result = requests.get(
-                        f"{st.session_state.okapi}/location-units/campuses?query=(name=={campus_name})",
+                        f"{okapi}/location-units/campuses?query=(name=={campus_name})",
                         headers=headers).json()
 
                     campusID = result['loccamps'][0]['id']
 
                     result2 = requests.get(
-                        f"{st.session_state.okapi}/location-units/libraries?query=(name=={library_name})",
+                        f"{okapi}/location-units/libraries?query=(name=={library_name})",
                         headers=headers).json()
 
                     if result2['loclibs'] == empty:
-                        success, error_msg = create_libraries(library_name, library_code, campusID)
+                        success, error_msg = create_libraries(library_name, library_code, campusID, okapi, tenant, token)
                         if not success and error_msg:
                             st.warning(f"⚠️ Library '{library_name}': {error_msg}")
 
@@ -118,7 +138,7 @@ def loc():
 
                     # FILL LOCATION DICTIONARY
                     result = requests.get(
-                        f"{st.session_state.okapi}/service-points?query=(name=={sp_name})",
+                        f"{okapi}/service-points?query=(name=={sp_name})",
                         headers=headers).json()
 
                     servicepoints = result.get('servicepoints') or []
@@ -164,7 +184,7 @@ def loc():
 
                         # GET LIBRARY ID
                         res = requests.get(
-                            f"{st.session_state.okapi}/location-units/libraries?query=(name=={locations_lib[key][i]})",
+                            f"{okapi}/location-units/libraries?query=(name=={locations_lib[key][i]})",
                             headers=headers,
                         ).json()
                         libraries = res.get("loclibs") or []
@@ -187,7 +207,7 @@ def loc():
                             error_messages.append(warn)
                             continue
 
-                        success, error_msg = create_locations(key, code, key, inst_id, camp_id, lib_ID, locations[key][0], locations[key])
+                        success, error_msg = create_locations(key, code, key, inst_id, camp_id, lib_ID, locations[key][0], locations[key], okapi, tenant, token)
                         if not success and error_msg:
                             error_messages.append(f"Location '{key}': {error_msg}")
                             st.warning(f"⚠️ Location '{key}': {error_msg}")
