@@ -88,6 +88,76 @@ def generate_excel_template():
             'Code': ['MAIN', 'REF']
         })
         department_df.to_excel(writer, sheet_name='Department', index=False)
+        
+        # Sheet 9: FeeFineOwner
+        # Service Points should be entered as labels (names), not UUIDs
+        # Use "ALL" to assign to all service points
+        fee_fine_owner_df = pd.DataFrame({
+            'Service Points': ['Main Library Desk', 'ALL'],
+            'Owner': ['1', '2']
+        })
+        fee_fine_owner_df.to_excel(writer, sheet_name='FeeFineOwner', index=False)
+        
+        # Sheet 10: FeeFine
+        # owner should reference the owner value from FeeFineOwner sheet
+        # feeFineType: type identifier (string)
+        # amountWithoutVat: numeric amount
+        # vat: VAT rate (optional, numeric)
+        # automatic: boolean (true/false)
+        # id: optional UUID (leave empty to auto-generate)
+        fee_fine_df = pd.DataFrame({
+            'feeFineType': ['1', '2'],
+            'amountWithoutVat': [5.0, 10.0],
+            'vat': [0.05, 0.10],
+            'owner': ['1', '2'],
+            'automatic': [False, True],
+            'id': ['', '']  # Leave empty to auto-generate
+        })
+        fee_fine_df.to_excel(writer, sheet_name='FeeFine', index=False)
+        
+        # Sheet 11: Waives
+        # nameReason: reason for waiving (required)
+        # id: optional UUID (leave empty to auto-generate)
+        # Each row creates one waive record
+        waives_df = pd.DataFrame({
+            'nameReason': ['Manager Approval', 'Lost Item Found'],
+            'id': ['', '']  # Leave empty to auto-generate
+        })
+        waives_df.to_excel(writer, sheet_name='Waives', index=False)
+        
+        # Sheet 12: ManualCharges
+        # nameReason: reason for manual charge (required)
+        # id: optional UUID (leave empty to auto-generate)
+        # Each row creates one manual charge record
+        manual_charges_df = pd.DataFrame({
+            'nameReason': ['Processing Fee', 'Replacement Fee'],
+            'id': ['', '']  # Leave empty to auto-generate
+        })
+        manual_charges_df.to_excel(writer, sheet_name='ManualCharges', index=False)
+        
+        # Sheet 13: PaymentMethods
+        # nameMethod: payment method name (required)
+        # allowedRefundMethod: boolean (optional, default: false)
+        # owner: references Owner from FeeFineOwner sheet (required)
+        # id: optional UUID (leave empty to auto-generate)
+        # Each row creates one payment method record
+        payment_methods_df = pd.DataFrame({
+            'nameMethod': ['cash', 'credit card'],
+            'allowedRefundMethod': [False, True],
+            'owner': ['1', '2'],
+            'id': ['', '']  # Leave empty to auto-generate
+        })
+        payment_methods_df.to_excel(writer, sheet_name='PaymentMethods', index=False)
+        
+        # Sheet 14: Refunds
+        # nameReason: reason for refund (required)
+        # id: optional UUID (leave empty to auto-generate)
+        # Each row creates one refund record
+        refunds_df = pd.DataFrame({
+            'nameReason': ['error', 'duplicate payment'],
+            'id': ['', '']  # Leave empty to auto-generate
+        })
+        refunds_df.to_excel(writer, sheet_name='Refunds', index=False)
     
     output.seek(0)
     return output

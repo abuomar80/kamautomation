@@ -25,7 +25,7 @@ def upload_file():
         # check sheet names
         test = openpyxl.load_workbook(file)
         sheets = test.sheetnames
-        test_names = ["Material_Types", "Statistical_Codes", "Item_status", "User_groups", "Location", "Calendar", "Calendar Exceptions", "Department"]
+        test_names = ["Material_Types", "Statistical_Codes", "Item_status", "User_groups", "Location", "Calendar", "Calendar Exceptions", "Department", "FeeFineOwner", "FeeFine", "Waives", "ManualCharges", "PaymentMethods", "Refunds"]
         match_state = []
         j = 0
         if file_length == len(test_names):
