@@ -1,0 +1,18 @@
+{
+  "name": "kamautomation",
+  "version": "1.0.0",
+  "description": "Cypress tests for KAM Automation Streamlit application",
+  "scripts": {
+    "cypress:open": "cypress open",
+    "cypress:run": "cypress run",
+    "test": "cypress run",
+    "test:headed": "cypress run --headed"
+  },
+  "devDependencies": {
+    "cypress": "^13.7.0"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}
+
