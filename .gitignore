@@ -56,6 +56,14 @@ target/
 node_modules/
 # dotenv
 .env
+# Cypress - All Cypress files should be ignored (testing is done locally)
+cypress/
+cypress.env.json
+package.json
+package-lock.json
+setup-cypress.sh
+setup-cypress.bat
+CYPRESS_README.md
 # Authentication files (contains sensitive data)
 authentication.yaml
 *.yaml.bak
