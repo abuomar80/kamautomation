@@ -24470,6 +24470,8 @@ async def loan_type():
 
 
 async def ensure_marc_templates():
+    from urllib.parse import quote
+    
     tenant, okapi, token = _get_connection_details()
     if not tenant:
         return False, "Missing tenant info"
@@ -24499,10 +24501,10 @@ async def ensure_marc_templates():
         list_config = module_config["list_config"]
         content_config = module_config["content_config"]
 
-        list_query = (
-            f"{okapi}/configurations/entries?query=(module=={module} and "
-            f"configName=={list_config})"
-        )
+        # Use the query format from cURL: (module=MARC_EDITOR and configName=recordTemplates)
+        # URL encode the query parameters properly to handle special characters
+        query_str = f"(module={module} and configName={list_config})"
+        list_query = f"{okapi}/configurations/entries?query={quote(query_str)}&limit=10000"
 
         try:
             list_resp = requests.get(list_query, headers=headers, timeout=DEFAULT_TIMEOUT)
@@ -24584,14 +24586,14 @@ async def ensure_marc_templates():
                     "PUT",
                     f"{okapi}/configurations/entries/{list_entry_id}",
                     headers=headers,
-                    data=json.dumps(templates_payload)
+                    data=json.dumps(templates_payload, ensure_ascii=False)
                 )
             else:
                 await async_request(
                     "POST",
                     f"{okapi}/configurations/entries",
                     headers=headers,
-                    data=json.dumps(templates_payload)
+                    data=json.dumps(templates_payload, ensure_ascii=False)
                 )
 
         for template_def in templates:
@@ -24599,10 +24601,9 @@ async def ensure_marc_templates():
             if not template_id:
                 continue
 
-            content_query = (
-                f"{okapi}/configurations/entries?query=(module=={module} and "
-                f"configName=={content_config} and code=={template_id})"
-            )
+            # Use the query format from cURL with proper URL encoding
+            content_query_str = f"(module={module} and configName={content_config} and code={template_id})"
+            content_query = f"{okapi}/configurations/entries?query={quote(content_query_str)}&limit=10000"
 
             try:
                 content_resp = requests.get(content_query, headers=headers, timeout=DEFAULT_TIMEOUT)
@@ -24648,7 +24649,7 @@ async def ensure_marc_templates():
                         "PUT",
                         f"{okapi}/configurations/entries/{config_id}",
                         headers=headers,
-                        data=json.dumps(payload)
+                        data=json.dumps(payload, ensure_ascii=False)
                     )
                     updated_templates.add(f"{module}:{display_name}")
                 continue
@@ -24657,7 +24658,7 @@ async def ensure_marc_templates():
                 "POST",
                 f"{okapi}/configurations/entries",
                 headers=headers,
-                data=json.dumps(payload)
+                data=json.dumps(payload, ensure_ascii=False)
             )
             created_templates.add(f"{module}:{display_name}")
 
