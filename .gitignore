@@ -56,12 +56,6 @@ target/
 node_modules/
 # dotenv
 .env
-# Cypress - Testing files (kept for local testing, but can be ignored if needed)
-# Uncomment the lines below if you want to ignore Cypress files:
-# cypress/videos/
-# cypress/screenshots/
-# cypress/downloads/
-# cypress.env.json
 # Authentication files (contains sensitive data)
 authentication.yaml
 *.yaml.bak
