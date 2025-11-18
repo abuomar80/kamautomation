@@ -24551,28 +24551,25 @@ async def ensure_marc_templates():
         handled_ids = set()
         meta_changed = False
 
+        # Preserve all existing templates (including manually modified ones)
+        # This ensures that manually modified templates in the frontend are not overwritten
         for existing_meta in existing_templates:
             template_id = existing_meta.get("id")
-            if template_id in desired_meta:
-                desired_entry = desired_meta[template_id]
-                if existing_meta != desired_entry:
-                    meta_changed = True
-                    updated_meta_list.append(desired_entry)
-                    display_name = desired_entry.get("title") or template_id
-                    updated_templates.add(f"{module}:{display_name}")
-                else:
-                    updated_meta_list.append(existing_meta)
-                handled_ids.add(template_id)
-            else:
-                updated_meta_list.append(existing_meta)
+            # Keep existing template metadata as-is to preserve manual modifications
+            updated_meta_list.append(existing_meta)
+            handled_ids.add(template_id)
 
+        # Only add new templates that don't exist yet
         for template_id, meta in desired_meta.items():
             if template_id not in handled_ids:
+                # This is a new template that doesn't exist - add it
                 meta_changed = True
                 updated_meta_list.append(meta)
                 display_name = meta.get("title") or template_id
                 created_templates.add(f"{module}:{display_name}")
 
+        # Only update the metadata list if we're adding new templates
+        # Don't update if all templates already exist (preserves manual modifications)
         if meta_changed:
             templates_payload = {
                 "module": module,
@@ -24638,20 +24635,9 @@ async def ensure_marc_templates():
             display_name = template_def.get("title") or template_id
 
             if existing_configs:
-                config_id = existing_configs[0].get('id')
-                try:
-                    existing_value = json.loads(existing_configs[0].get('value') or '{}')
-                except json.JSONDecodeError:
-                    existing_value = {}
-
-                if existing_value != (template_def.get('content') or {}):
-                    await async_request(
-                        "PUT",
-                        f"{okapi}/configurations/entries/{config_id}",
-                        headers=headers,
-                        data=json.dumps(payload, ensure_ascii=False)
-                    )
-                    updated_templates.add(f"{module}:{display_name}")
+                # Template already exists - preserve it (don't overwrite manually modified templates)
+                # Only log that it exists, but don't update it
+                logging.info(f"Template {module}:{display_name} already exists, preserving existing content")
                 continue
 
             await async_request(
