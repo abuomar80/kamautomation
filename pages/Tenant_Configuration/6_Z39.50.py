@@ -55,10 +55,28 @@ def Add_z39():
     for l in profiles['profiles']:
         pro_names.append(l['name'])
 
+    # List of active Z39.50 servers (based on KohaSupport directory and common active servers)
+    server_options = [
+        'Library of Congress (LOC)',
+        'OCLC WorldCat',
+        'NLM (National Library of Medicine)',
+        'British Library',
+        'Harvard University',
+        'MIT Libraries',
+        'Yale University',
+        'University of California',
+        'OhioLink',
+        'Indiana University',
+        'American University of Beirut - AUB (Lebanon)',
+        'APL (American Public Library)',
+        'Library of Congress - Authorities',
+        'National Library of Australia',
+        'Bibliothèque nationale de France'
+    ]
+    
     options = st.multiselect(
         'Please choose Profiles to create',
-        ['NLM', 'APL', 'American University of Beirut - AUB (Lebanon)', 'British Library', 'OCLC',
-         'OhioLink', "Yale University", "Indiana"])
+        server_options)
     if st.button("Create"):
         with st.spinner(f'Creating Profiles....'):
             # time.sleep(5)
@@ -68,9 +86,9 @@ def Add_z39():
                     if lib in pro_names:
                         st.warning(f'{lib} Already exists.')
                     else:
-                        if lib == 'NLM':
+                        if lib == 'NLM' or lib == 'NLM (National Library of Medicine)':
                             data = {
-                                "name": "NLM",
+                                "name": "NLM (National Library of Medicine)",
                                 "url": "na91.alma.exlibrisgroup.com:1921/01NLM_INST",
                                 "externalIdQueryMap": "@attr 1=7 $identifier",
                                 "internalIdEmbedPath": "999ff$i",
@@ -153,9 +171,9 @@ def Add_z39():
                                 "enabled": True,
                                 "isBib": True
                             }
-                        elif lib == 'OCLC':
+                        elif lib == 'OCLC' or lib == 'OCLC WorldCat':
                             data = {
-                                "name": "OCLC",
+                                "name": "OCLC WorldCat",
                                 "url": "zcat.oclc.org:210/OLUCWorldCat",
                                 "externalIdQueryMap": "@attr 1=9 $identifier",
                                 "internalIdEmbedPath": "999ff$i",
@@ -216,9 +234,9 @@ def Add_z39():
                                 "enabled": True,
                                 "isBib": True
                             }
-                        elif lib == 'Indiana':
+                        elif lib == 'Indiana' or lib == 'Indiana University':
                             data = {
-                                "name": "Indiana",
+                                "name": "Indiana University",
                                 "url": "libprd.uits.indiana.edu:2200/UNICORN",
                                 "externalIdQueryMap": "@attr 1=9 $identifier",
                                 "internalIdEmbedPath": "999ff$i",
@@ -237,8 +255,208 @@ def Add_z39():
                                 "enabled": True,
                                 "isBib": True
                             }
+                        elif lib == 'Library of Congress (LOC)':
+                            data = {
+                                "name": "Library of Congress (LOC)",
+                                "url": "lx2.loc.gov:210/LCDB",
+                                "externalIdQueryMap": "@attr 1=7 $identifier",
+                                "internalIdEmbedPath": "999ff$i",
+                                "createJobProfileId": "d0ebb7b0-2f0f-11eb-adc1-0242ac120002",
+                                "updateJobProfileId": "91f9b8d6-d80e-4727-9783-73fb53e3c786",
+                                "allowedCreateJobProfileIds": [
+                                    "d0ebb7b0-2f0f-11eb-adc1-0242ac120002"
+                                ],
+                                "allowedUpdateJobProfileIds": [
+                                    "91f9b8d6-d80e-4727-9783-73fb53e3c786"
+                                ],
+                                "targetOptions": {
+                                    "preferredRecordSyntax": "MARC21"
+                                },
+                                "externalIdentifierType": "8261054f-be78-422d-bd51-4ed9f33c3422",
+                                "enabled": True,
+                                "isBib": True
+                            }
+                        elif lib == 'OCLC WorldCat':
+                            data = {
+                                "name": "OCLC WorldCat",
+                                "url": "zcat.oclc.org:210/OLUCWorldCat",
+                                "externalIdQueryMap": "@attr 1=9 $identifier",
+                                "internalIdEmbedPath": "999ff$i",
+                                "createJobProfileId": "d0ebb7b0-2f0f-11eb-adc1-0242ac120002",
+                                "updateJobProfileId": "91f9b8d6-d80e-4727-9783-73fb53e3c786",
+                                "allowedCreateJobProfileIds": [
+                                    "d0ebb7b0-2f0f-11eb-adc1-0242ac120002"
+                                ],
+                                "allowedUpdateJobProfileIds": [
+                                    "91f9b8d6-d80e-4727-9783-73fb53e3c786"
+                                ],
+                                "targetOptions": {
+                                    "preferredRecordSyntax": "MARC21"
+                                },
+                                "externalIdentifierType": "8261054f-be78-422d-bd51-4ed9f33c3422",
+                                "enabled": True,
+                                "isBib": True
+                            }
+                        elif lib == 'NLM (National Library of Medicine)':
+                            data = {
+                                "name": "NLM (National Library of Medicine)",
+                                "url": "na91.alma.exlibrisgroup.com:1921/01NLM_INST",
+                                "externalIdQueryMap": "@attr 1=7 $identifier",
+                                "internalIdEmbedPath": "999ff$i",
+                                "createJobProfileId": "d0ebb7b0-2f0f-11eb-adc1-0242ac120002",
+                                "updateJobProfileId": "91f9b8d6-d80e-4727-9783-73fb53e3c786",
+                                "allowedCreateJobProfileIds": [
+                                    "d0ebb7b0-2f0f-11eb-adc1-0242ac120002"
+                                ],
+                                "allowedUpdateJobProfileIds": [
+                                    "91f9b8d6-d80e-4727-9783-73fb53e3c786"
+                                ],
+                                "targetOptions": {
+                                    "preferredRecordSyntax": "MARC21"
+                                },
+                                "externalIdentifierType": "8261054f-be78-422d-bd51-4ed9f33c3422",
+                                "enabled": True,
+                                "isBib": True
+                            }
+                        elif lib == 'Harvard University':
+                            data = {
+                                "name": "Harvard University",
+                                "url": "z3950.hul.harvard.edu:7090/voyager",
+                                "externalIdQueryMap": "@attr 1=7 $identifier",
+                                "internalIdEmbedPath": "999ff$i",
+                                "createJobProfileId": "d0ebb7b0-2f0f-11eb-adc1-0242ac120002",
+                                "updateJobProfileId": "91f9b8d6-d80e-4727-9783-73fb53e3c786",
+                                "allowedCreateJobProfileIds": [
+                                    "d0ebb7b0-2f0f-11eb-adc1-0242ac120002"
+                                ],
+                                "allowedUpdateJobProfileIds": [
+                                    "91f9b8d6-d80e-4727-9783-73fb53e3c786"
+                                ],
+                                "targetOptions": {
+                                    "preferredRecordSyntax": "USMARC"
+                                },
+                                "externalIdentifierType": "8261054f-be78-422d-bd51-4ed9f33c3422",
+                                "enabled": True,
+                                "isBib": True
+                            }
+                        elif lib == 'MIT Libraries':
+                            data = {
+                                "name": "MIT Libraries",
+                                "url": "library.mit.edu:7090/voyager",
+                                "externalIdQueryMap": "@attr 1=7 $identifier",
+                                "internalIdEmbedPath": "999ff$i",
+                                "createJobProfileId": "d0ebb7b0-2f0f-11eb-adc1-0242ac120002",
+                                "updateJobProfileId": "91f9b8d6-d80e-4727-9783-73fb53e3c786",
+                                "allowedCreateJobProfileIds": [
+                                    "d0ebb7b0-2f0f-11eb-adc1-0242ac120002"
+                                ],
+                                "allowedUpdateJobProfileIds": [
+                                    "91f9b8d6-d80e-4727-9783-73fb53e3c786"
+                                ],
+                                "targetOptions": {
+                                    "preferredRecordSyntax": "USMARC"
+                                },
+                                "externalIdentifierType": "8261054f-be78-422d-bd51-4ed9f33c3422",
+                                "enabled": True,
+                                "isBib": True
+                            }
+                        elif lib == 'University of California':
+                            data = {
+                                "name": "University of California",
+                                "url": "melvyl.ucop.edu:7090/voyager",
+                                "externalIdQueryMap": "@attr 1=7 $identifier",
+                                "internalIdEmbedPath": "999ff$i",
+                                "createJobProfileId": "d0ebb7b0-2f0f-11eb-adc1-0242ac120002",
+                                "updateJobProfileId": "91f9b8d6-d80e-4727-9783-73fb53e3c786",
+                                "allowedCreateJobProfileIds": [
+                                    "d0ebb7b0-2f0f-11eb-adc1-0242ac120002"
+                                ],
+                                "allowedUpdateJobProfileIds": [
+                                    "91f9b8d6-d80e-4727-9783-73fb53e3c786"
+                                ],
+                                "targetOptions": {
+                                    "preferredRecordSyntax": "USMARC"
+                                },
+                                "externalIdentifierType": "8261054f-be78-422d-bd51-4ed9f33c3422",
+                                "enabled": True,
+                                "isBib": True
+                            }
+                        elif lib == 'Library of Congress - Authorities':
+                            data = {
+                                "name": "Library of Congress - Authorities",
+                                "url": "lx2.loc.gov:210/LCDB",
+                                "externalIdQueryMap": "@attr 1=7 $identifier",
+                                "internalIdEmbedPath": "999ff$i",
+                                "createJobProfileId": "d0ebb7b0-2f0f-11eb-adc1-0242ac120002",
+                                "updateJobProfileId": "91f9b8d6-d80e-4727-9783-73fb53e3c786",
+                                "allowedCreateJobProfileIds": [
+                                    "d0ebb7b0-2f0f-11eb-adc1-0242ac120002"
+                                ],
+                                "allowedUpdateJobProfileIds": [
+                                    "91f9b8d6-d80e-4727-9783-73fb53e3c786"
+                                ],
+                                "targetOptions": {
+                                    "preferredRecordSyntax": "MARC21"
+                                },
+                                "externalIdentifierType": "8261054f-be78-422d-bd51-4ed9f33c3422",
+                                "enabled": True,
+                                "isBib": True
+                            }
+                        elif lib == 'National Library of Australia':
+                            data = {
+                                "name": "National Library of Australia",
+                                "url": "z3950.nla.gov.au:210/ANL",
+                                "externalIdQueryMap": "@attr 1=7 $identifier",
+                                "internalIdEmbedPath": "999ff$i",
+                                "createJobProfileId": "d0ebb7b0-2f0f-11eb-adc1-0242ac120002",
+                                "updateJobProfileId": "91f9b8d6-d80e-4727-9783-73fb53e3c786",
+                                "allowedCreateJobProfileIds": [
+                                    "d0ebb7b0-2f0f-11eb-adc1-0242ac120002"
+                                ],
+                                "allowedUpdateJobProfileIds": [
+                                    "91f9b8d6-d80e-4727-9783-73fb53e3c786"
+                                ],
+                                "targetOptions": {
+                                    "preferredRecordSyntax": "MARC21"
+                                },
+                                "externalIdentifierType": "8261054f-be78-422d-bd51-4ed9f33c3422",
+                                "enabled": True,
+                                "isBib": True
+                            }
+                        elif lib == 'Bibliothèque nationale de France':
+                            data = {
+                                "name": "Bibliothèque nationale de France",
+                                "url": "catalogue.bnf.fr:210/BNF",
+                                "externalIdQueryMap": "@attr 1=7 $identifier",
+                                "internalIdEmbedPath": "999ff$i",
+                                "createJobProfileId": "d0ebb7b0-2f0f-11eb-adc1-0242ac120002",
+                                "updateJobProfileId": "91f9b8d6-d80e-4727-9783-73fb53e3c786",
+                                "allowedCreateJobProfileIds": [
+                                    "d0ebb7b0-2f0f-11eb-adc1-0242ac120002"
+                                ],
+                                "allowedUpdateJobProfileIds": [
+                                    "91f9b8d6-d80e-4727-9783-73fb53e3c786"
+                                ],
+                                "targetOptions": {
+                                    "preferredRecordSyntax": "UNIMARC"
+                                },
+                                "externalIdentifierType": "8261054f-be78-422d-bd51-4ed9f33c3422",
+                                "enabled": True,
+                                "isBib": True
+                            }
+                        else:
+                            st.warning(f"Configuration for '{lib}' not found. Please add it manually.")
+                            continue
+                        
                         post_z = requests.post(f'{okapi_url}/copycat/profiles', headers=headers, data=json.dumps(data))
-                        st.success(f"{lib} created.")
+                        if post_z.status_code in [200, 201]:
+                            st.success(f"{lib} created successfully.")
+                        else:
+                            try:
+                                error_msg = post_z.json().get('errors', [{}])[0].get('message', f'Error (Status: {post_z.status_code})')
+                            except:
+                                error_msg = f'Error creating {lib} (Status: {post_z.status_code})'
+                            st.error(f"Failed to create {lib}: {error_msg}")
             else:
                 st.warning('No Library Chosen')
 
