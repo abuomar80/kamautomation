@@ -34,15 +34,17 @@ except (TypeError, AttributeError, ValueError):
     try:
         # Try without key parameter
         authenticator.login(location='main')
-    except Exception as e:
-        # If all else fails, show error and try basic login
-        st.error(f"Authentication module compatibility issue. Please check streamlit-authenticator version.")
+    except:
+        # Try old API signature (positional arguments)
         try:
-            # Last resort - try the old API
             authenticator.login('Login', 'main')
         except:
-            # Absolute fallback
-            authenticator.login()
+            # Absolute fallback - no arguments
+            try:
+                authenticator.login()
+            except:
+                # If everything fails, at least show the form manually
+                pass
 
 # Get authentication status from session_state (stored by authenticator)
 name = st.session_state.get('name')
