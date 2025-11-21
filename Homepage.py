@@ -29,15 +29,9 @@ try:
         st.image(logo_image, width=200)
         st.markdown("<h1 style='text-align:center;margin-top:0;'>Medad Automation Tools</h1>", unsafe_allow_html=True)
     authenticator.login(location='main', key='Login')
-except (TypeError, AttributeError):
-    # Fallback for different API versions
-    try:
-        authenticator.login()
-    except:
-        try:
-            authenticator.login('Login', 'main')
-        except:
-            authenticator.login('Login')
+except (TypeError, AttributeError, ValueError):
+    # Fallback for different API versions - just use location='main'
+    authenticator.login(location='main')
 
 # Get authentication status from session_state (stored by authenticator)
 name = st.session_state.get('name')

@@ -1,0 +1,23 @@
+# Authentication Configuration Template
+# Copy this file to authentication.yaml and fill in your details
+
+credentials:
+  usernames:
+    # Add your username here
+    your_username:
+      email: your.email@example.com
+      name: Your Full Name
+      # Generate password hash using:
+      # python -c "import streamlit_authenticator as stauth; print(stauth.Hasher(['your_password']).generate()[0])"
+      password: $2b$12$YOUR_B CRYPT_HASH_HERE
+
+cookie:
+  expiry_days: 30
+  key: 'your_secret_key_here_min_32_chars'
+  name: authentication
+
+# Optional: Pre-authorized emails (bypass login for these emails)
+preauthorized:
+  emails:
+  - authorized.user@example.com
+

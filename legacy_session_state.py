@@ -9,6 +9,9 @@ def _track_forbidden_keys(element):
         @_wraps(element)
         def wrapper_element(*args, **kwargs):
             if "key" in kwargs:
+                # Initialize _forbidden_keys if it doesn't exist
+                if "_forbidden_keys" not in st.session_state:
+                    st.session_state._forbidden_keys = set()
                 st.session_state._forbidden_keys.add(kwargs["key"])
             return element(*args, **kwargs)
 
