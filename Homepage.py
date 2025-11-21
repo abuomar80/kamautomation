@@ -30,8 +30,19 @@ try:
         st.markdown("<h1 style='text-align:center;margin-top:0;'>Medad Automation Tools</h1>", unsafe_allow_html=True)
     authenticator.login(location='main', key='Login')
 except (TypeError, AttributeError, ValueError):
-    # Fallback for different API versions - just use location='main'
-    authenticator.login(location='main')
+    # Fallback for different API versions
+    try:
+        # Try without key parameter
+        authenticator.login(location='main')
+    except Exception as e:
+        # If all else fails, show error and try basic login
+        st.error(f"Authentication module compatibility issue. Please check streamlit-authenticator version.")
+        try:
+            # Last resort - try the old API
+            authenticator.login('Login', 'main')
+        except:
+            # Absolute fallback
+            authenticator.login()
 
 # Get authentication status from session_state (stored by authenticator)
 name = st.session_state.get('name')
