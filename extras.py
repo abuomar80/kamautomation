@@ -24410,17 +24410,20 @@ async def ensure_address_types():
         return False, f"Error fetching address types: {exc}"
 
     existing_types = set()
+    address_type_names = []
     if isinstance(existing_response, dict):
         raw_types = existing_response.get("addressTypes") or existing_response.get("addresstypes") or []
         for entry in raw_types:
             name = entry.get("addressType") or entry.get("name")
             if name:
                 existing_types.add(name.lower())
+                address_type_names.append(name)
     elif isinstance(existing_response, list):
         for entry in existing_response:
             name = entry.get("addressType") or entry.get("name")
             if name:
                 existing_types.add(name.lower())
+                address_type_names.append(name)
 
     desired_types = ["Home", "Work"]
     create_tasks = []
@@ -24433,6 +24436,7 @@ async def ensure_address_types():
             "id": str(uuid.uuid4())
         }
         create_tasks.append(async_request("POST", url, headers=headers, data=json.dumps(payload)))
+        address_type_names.append(address_type)
 
     if create_tasks:
         try:
@@ -24441,7 +24445,26 @@ async def ensure_address_types():
             logging.error(f"Failed to create address types: {exc}")
             return False, f"Failed creating address types: {exc}"
 
-    return True, "Address types ensured"
+    # Fetch updated list after creation to ensure we have all types
+    if create_tasks:
+        try:
+            updated_response = await async_request("GET", url, headers=headers)
+            address_type_names = []
+            if isinstance(updated_response, dict):
+                raw_types = updated_response.get("addressTypes") or updated_response.get("addresstypes") or []
+                for entry in raw_types:
+                    name = entry.get("addressType") or entry.get("name")
+                    if name:
+                        address_type_names.append(name)
+            elif isinstance(updated_response, list):
+                for entry in updated_response:
+                    name = entry.get("addressType") or entry.get("name")
+                    if name:
+                        address_type_names.append(name)
+        except Exception:
+            pass  # If fetch fails, use the list we already have
+
+    return True, ", ".join(address_type_names) if address_type_names else "Address types ensured"
 
 async def loan_type():
     tenant, okapi, token = _get_connection_details()

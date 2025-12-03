@@ -468,12 +468,6 @@ if st.session_state.allow_tenant:
                 else:
                     add_summary('warning', 'Help URL configuration', help_detail)
 
-                addr_status, addr_list = fetch_address_types_status()
-                if addr_status:
-                    add_summary('success', 'Address types present', addr_list or 'None')
-                else:
-                    add_summary('warning', 'Address types', 'Unable to verify address types')
-
                 location_status, location_details = fetch_dummy_location_status()
                 if location_status:
                     add_summary('success', 'Analytics location tree present')
