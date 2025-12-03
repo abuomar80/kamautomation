@@ -24676,9 +24676,9 @@ async def ensure_marc_templates():
         updated_only = sorted(updated_templates - created_templates)
         messages = []
         if created_only:
-            messages.append(f"Created {len(created_only)}: {', '.join(created_only)}")
+            messages.append(f"Created {len(created_only)}")
         if updated_only:
-            messages.append(f"Updated {len(updated_only)}: {', '.join(updated_only)}")
+            messages.append(f"Updated {len(updated_only)}")
         return True, " | ".join(messages)
 
     return True, "Templates already present"
