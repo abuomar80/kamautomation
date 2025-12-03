@@ -33,7 +33,7 @@ with st.form("backup_form"):
     st.text_input("Enter Tenant Name:", placeholder="Please enter tenant name", key="tenant_3")
     st.selectbox(
         "Select Okapi URL:",
-        ("https://api02-v1.ils.medad.com", "https://api01-v1.ils.medad.com", "https://api01-v1-uae.ils.medad.com"),
+        ("https://api02-v1.ils.medad.com", "https://api01-v1.ils.medad.com", "https://api01-v1-uae.ils.medad.com", "https://api02-v1-test.ils.medad.com"),
         key="okapi_3",
     )
     submitted_backup = st.form_submit_button("Connect", type="primary")

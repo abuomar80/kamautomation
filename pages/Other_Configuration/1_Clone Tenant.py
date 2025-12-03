@@ -55,7 +55,7 @@ with dev1:
         st.text_input("Enter Tenant Name:", placeholder="Please enter tenant name", key="tenant_1")
         st.selectbox(
             "Select Okapi URL:",
-            ("https://api02-v1.ils.medad.com", "https://api01-v1.ils.medad.com", "https://api01-v1-uae.ils.medad.com"),
+            ("https://api02-v1.ils.medad.com", "https://api01-v1.ils.medad.com", "https://api01-v1-uae.ils.medad.com", "https://api02-v1-test.ils.medad.com"),
             key="okapi_1",
         )
         submitted_3 = st.form_submit_button("Connect", type="primary")
@@ -80,7 +80,7 @@ with dev2:
         st.text_input("Enter Tenant Name:", placeholder="Please enter tenant name", key="tenant_2")
         st.selectbox(
             "Select Okapi URL:",
-            ("https://api02-v1.ils.medad.com", "https://api01-v1.ils.medad.com", "https://api01-v1-uae.ils.medad.com"),
+            ("https://api02-v1.ils.medad.com", "https://api01-v1.ils.medad.com", "https://api01-v1-uae.ils.medad.com", "https://api02-v1-test.ils.medad.com"),
             key="okapi_2",
         )
         submitted_1 = st.form_submit_button("Connect", type="primary")

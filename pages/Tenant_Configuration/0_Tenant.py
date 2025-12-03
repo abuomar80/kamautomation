@@ -54,11 +54,11 @@ st.markdown(
 st.text_input("Enter Tenant Username:", key="username_tenant", placeholder="Please enter your username")
 st.text_input("Enter Tenant Password:", key="password", placeholder="Please enter your password", type='password')
 st.text_input("Enter Tenant Name:", placeholder="Please enter tenant name", key="tenant")
-st.selectbox(
-    "Select Okapi URL:",
-    ("https://api02-v1.ils.medad.com", "https://api01-v1.ils.medad.com", "https://api01-v1-uae.ils.medad.com"),
-    key="okapi",
-)
+    st.selectbox(
+        "Select Okapi URL:",
+        ("https://api02-v1.ils.medad.com", "https://api01-v1.ils.medad.com", "https://api01-v1-uae.ils.medad.com", "https://api02-v1-test.ils.medad.com"),
+        key="okapi",
+    )
 
 col1, col2 = st.columns(2)
 with col1:
