@@ -8,7 +8,9 @@ import pandas as pd
 import requests
 from st_aggrid import AgGrid, GridOptionsBuilder
 from legacy_session_state import legacy_session_state
+from connection_manager import get_session, make_request_with_retry, periodic_connection_check, validate_connection
 import time
+import json
 
 legacy_session_state()
 
@@ -54,11 +56,13 @@ def loc():
     if bool(selected_rows):
         selection = pd.DataFrame(selected_rows)
 
-        col1, col2 = st.columns(2)
+        col1, col2, col3 = st.columns(3)
         with col1:
             createLoc = st.button("Create locations", type="primary")
         with col2:
             deleteLoc = st.button("🗑️ Delete Created Items", type="secondary")
+        with col3:
+            scanLoc = st.button("🔍 Scan for Created Items", type="secondary")
         
         # Initialize session state for tracking created items
         if 'created_locations' not in st.session_state:
@@ -66,10 +70,76 @@ def loc():
         if 'created_service_points' not in st.session_state:
             st.session_state.created_service_points = []
         
+        # Display current tracking status
+        if st.session_state.created_locations or st.session_state.created_service_points:
+            with st.expander(f"📝 View Tracked Items ({len(st.session_state.created_locations)} locations, {len(st.session_state.created_service_points)} service points)", expanded=False):
+                if st.session_state.created_locations:
+                    st.write("**Locations to delete:**")
+                    for loc_code in st.session_state.created_locations:
+                        st.write(f"  - {loc_code}")
+                if st.session_state.created_service_points:
+                    st.write("**Service Points to delete:**")
+                    for sp_code in st.session_state.created_service_points:
+                        st.write(f"  - {sp_code}")
+                if st.button("Clear Tracking List", key="clear_tracking"):
+                    st.session_state.created_locations = []
+                    st.session_state.created_service_points = []
+                    st.success("Tracking list cleared!")
+                    st.rerun()
+        else:
+            st.info("ℹ️ No items tracked yet. Items will be automatically tracked when created, or use 'Scan for Created Items' to find existing items from selected rows.")
+        
+        # Handle scan button - find locations and service points from selected rows
+        if scanLoc:
+            if selection.empty:
+                st.warning("⚠️ Please select rows first before scanning.")
+            else:
+                scan_progress = st.progress(0)
+                scan_status = st.empty()
+                scanned_locations = []
+                scanned_service_points = []
+                total_rows = len(selection)
+                
+                for idx, (index, row) in enumerate(selection.iterrows()):
+                    scan_progress.progress((idx + 1) / total_rows)
+                    scan_status.text(f"Scanning row {idx + 1} of {total_rows}...")
+                    
+                    sp_code = str(row["ServicePoints Codes"]).strip()
+                    location_code = str(row["LocationsCodes"]).strip()
+                    
+                    # Check if service point exists
+                    if sp_code:
+                        sp_id = get_service_point_by_code(sp_code, okapi, tenant, token)
+                        if sp_id and sp_code not in st.session_state.created_service_points:
+                            scanned_service_points.append(sp_code)
+                    
+                    # Check if location exists
+                    if location_code:
+                        loc_id = get_location_by_code(location_code, okapi, tenant, token)
+                        if loc_id and location_code not in st.session_state.created_locations:
+                            scanned_locations.append(location_code)
+                
+                scan_progress.empty()
+                scan_status.empty()
+                
+                # Add scanned items to session state
+                st.session_state.created_locations.extend(scanned_locations)
+                st.session_state.created_service_points.extend(scanned_service_points)
+                
+                # Remove duplicates
+                st.session_state.created_locations = list(set(st.session_state.created_locations))
+                st.session_state.created_service_points = list(set(st.session_state.created_service_points))
+                
+                if scanned_locations or scanned_service_points:
+                    st.success(f"✅ Found {len(scanned_locations)} location(s) and {len(scanned_service_points)} service point(s) from selected rows!")
+                    st.rerun()
+                else:
+                    st.info("ℹ️ No new items found in selected rows. Items may already be tracked or don't exist.")
+        
         # Handle delete button
         if deleteLoc:
             if not st.session_state.created_locations and not st.session_state.created_service_points:
-                st.warning("⚠️ No items to delete. Create locations first.")
+                st.warning("⚠️ No items to delete. Create locations first or use 'Scan for Created Items' to find existing items.")
             else:
                 with st.spinner('Deleting created items...'):
                     delete_progress = st.progress(0)
@@ -144,9 +214,24 @@ def loc():
             session_created_locations = []
             session_created_service_points = []
             
-            # Connection keep-alive: Create a session for connection pooling
-            session = requests.Session()
-            session.headers.update(headers)
+            # Connection keep-alive: Create a session using connection_manager
+            session = get_session()
+            if not session:
+                st.error("⚠️ Failed to create session. Please check your connection details.")
+                progress_bar.empty()
+                status_text.empty()
+                return
+            
+            # Validate initial connection
+            is_valid, current_token = validate_connection(session, okapi, tenant, token)
+            if not is_valid:
+                st.error("⚠️ Initial connection validation failed. Please check your credentials and reconnect.")
+                progress_bar.empty()
+                status_text.empty()
+                return
+            
+            token = current_token  # Update token if refreshed
+            headers = {"x-okapi-tenant": f"{tenant}", "x-okapi-token": f"{token}"}
             
             try:
                 for idx, (index, row) in enumerate(selection.iterrows()):
@@ -155,16 +240,16 @@ def loc():
                     progress_bar.progress(progress)
                     status_text.text(f"Processing row {idx + 1} of {total_rows}: Creating service points and locations...")
                     
-                    # Keep connection alive with periodic refresh
-                    if idx > 0 and idx % 50 == 0:
-                        # Refresh token/connection every 50 rows
-                        try:
-                            test_response = session.get(f"{okapi}/locations?limit=1", timeout=10)
-                            if test_response.status_code == 401:
-                                st.error("⚠️ Connection expired. Please reconnect to tenant.")
-                                break
-                        except:
-                            pass
+                    # Keep connection alive with periodic validation and refresh
+                    if idx > 0 and idx % 25 == 0:  # Check more frequently (every 25 rows)
+                        if not periodic_connection_check(session, check_interval=25):
+                            st.error(f"⚠️ Connection lost at row {idx + 1}. Please reconnect to tenant.")
+                            st.info(f"💡 Processed {idx} rows before connection issue. You can use Delete button to clean up created items.")
+                            break
+                        # Update token from session state in case it was refreshed
+                        token = st.session_state.get('token')
+                        headers = {"x-okapi-tenant": f"{tenant}", "x-okapi-token": f"{token}"}
+                        session.headers.update(headers)
                     
                     sp_name = str(row["ServicePoints name"]).strip()
                     sp_code = str(row["ServicePoints Codes"]).strip()
@@ -177,14 +262,26 @@ def loc():
                     location_name = str(row["LocationsName"]).strip()
                     location_code = str(row["LocationsCodes"]).strip()
 
-                    name_result = session.get(
-                        f"{okapi}/service-points?query=(name = {sp_name})",
-                        timeout=30
-                    ).json()
-                    code_result = session.get(
-                        f"{okapi}/service-points?query=(code = {sp_code})",
-                        timeout=30
-                    ).json()
+                    # Use retry logic for API calls
+                    try:
+                        name_response = make_request_with_retry(session, 'GET', f"{okapi}/service-points?query=(name = {sp_name})")
+                        if name_response is None:
+                            error_messages.append(f"Failed to query service point '{sp_name}' after retries")
+                            continue
+                        name_result = name_response.json()
+                    except Exception as e:
+                        error_messages.append(f"Error querying service point '{sp_name}': {str(e)}")
+                        continue
+                    
+                    try:
+                        code_response = make_request_with_retry(session, 'GET', f"{okapi}/service-points?query=(code = {sp_code})")
+                        if code_response is None:
+                            error_messages.append(f"Failed to query service point code '{sp_code}' after retries")
+                            continue
+                        code_result = code_response.json()
+                    except Exception as e:
+                        error_messages.append(f"Error querying service point code '{sp_code}': {str(e)}")
+                        continue
                     empty = []
 
                     # Create service point and handle response (already exists = success, no message)
@@ -199,62 +296,85 @@ def loc():
 
 
 
-                    result = session.get(
-                        f"{okapi}/location-units/institutions?query=(name=={institution_name})",
-                        timeout=30
-                    ).json()
+                    try:
+                        result_response = make_request_with_retry(session, 'GET', f"{okapi}/location-units/institutions?query=(name=={institution_name})")
+                        if result_response is None:
+                            error_messages.append(f"Failed to query institution '{institution_name}' after retries")
+                            continue
+                        result = result_response.json()
+                    except Exception as e:
+                        error_messages.append(f"Error querying institution '{institution_name}': {str(e)}")
+                        continue
 
-                    if result['locinsts'] == empty:
+                    if result.get('locinsts') == empty:
                         success, error_msg = create_institutions(institution_name, institution_code, okapi, tenant, token)
                         if not success and error_msg:
                             st.warning(f"⚠️ Institution '{institution_name}': {error_msg}")
 
-
                     # GET INSTITUTION ID
-                    result = session.get(
-                        f"{okapi}/location-units/institutions?query=(name=={institution_name})",
-                        timeout=30
-                    ).json()
-                    insID = result['locinsts'][0]['id']
+                    try:
+                        result_response = make_request_with_retry(session, 'GET', f"{okapi}/location-units/institutions?query=(name=={institution_name})")
+                        if result_response is None or not result_response.json().get('locinsts'):
+                            error_messages.append(f"Institution '{institution_name}' not found after creation")
+                            continue
+                        result = result_response.json()
+                        insID = result['locinsts'][0]['id']
+                    except Exception as e:
+                        error_messages.append(f"Error getting institution ID for '{institution_name}': {str(e)}")
+                        continue
 
+                    try:
+                        result2_response = make_request_with_retry(session, 'GET', f"{okapi}/location-units/campuses?query=(name=={campus_name})")
+                        if result2_response is None:
+                            error_messages.append(f"Failed to query campus '{campus_name}' after retries")
+                            continue
+                        result2 = result2_response.json()
+                    except Exception as e:
+                        error_messages.append(f"Error querying campus '{campus_name}': {str(e)}")
+                        continue
 
-                    result2 = session.get(
-                        f"{okapi}/location-units/campuses?query=(name=={campus_name})",
-                        timeout=30
-                    ).json()
-
-                    if result2['loccamps'] == empty:
+                    if result2.get('loccamps') == empty:
                         success, error_msg = create_campuses(campus_name, campus_code, insID, okapi, tenant, token)
                         if not success and error_msg:
                             st.warning(f"⚠️ Campus '{campus_name}': {error_msg}")
 
-
                     # CREATING LIBRARIES
-                    result = session.get(
-                        f"{okapi}/location-units/campuses?query=(name=={campus_name})",
-                        timeout=30
-                    ).json()
+                    try:
+                        result_response = make_request_with_retry(session, 'GET', f"{okapi}/location-units/campuses?query=(name=={campus_name})")
+                        if result_response is None or not result_response.json().get('loccamps'):
+                            error_messages.append(f"Campus '{campus_name}' not found after creation")
+                            continue
+                        result = result_response.json()
+                        campusID = result['loccamps'][0]['id']
+                    except Exception as e:
+                        error_messages.append(f"Error getting campus ID for '{campus_name}': {str(e)}")
+                        continue
 
-                    campusID = result['loccamps'][0]['id']
+                    try:
+                        result2_response = make_request_with_retry(session, 'GET', f"{okapi}/location-units/libraries?query=(name=={library_name})")
+                        if result2_response is None:
+                            error_messages.append(f"Failed to query library '{library_name}' after retries")
+                            continue
+                        result2 = result2_response.json()
+                    except Exception as e:
+                        error_messages.append(f"Error querying library '{library_name}': {str(e)}")
+                        continue
 
-                    result2 = session.get(
-                        f"{okapi}/location-units/libraries?query=(name=={library_name})",
-                        timeout=30
-                    ).json()
-
-                    if result2['loclibs'] == empty:
+                    if result2.get('loclibs') == empty:
                         success, error_msg = create_libraries(library_name, library_code, campusID, okapi, tenant, token)
                         if not success and error_msg:
                             st.warning(f"⚠️ Library '{library_name}': {error_msg}")
 
-                    # else:
-                        # st.warning(f'Libary ({row["LibrariesName"]}) already exists.')
-
                     # FILL LOCATION DICTIONARY
-                    result = session.get(
-                        f"{okapi}/service-points?query=(name=={sp_name})",
-                        timeout=30
-                    ).json()
+                    try:
+                        result_response = make_request_with_retry(session, 'GET', f"{okapi}/service-points?query=(name=={sp_name})")
+                        if result_response is None:
+                            error_messages.append(f"Failed to query service point '{sp_name}' for location creation")
+                            continue
+                        result = result_response.json()
+                    except Exception as e:
+                        error_messages.append(f"Error querying service point '{sp_name}' for location: {str(e)}")
+                        continue
 
                     servicepoints = result.get('servicepoints') or []
                     if not servicepoints:
@@ -307,10 +427,19 @@ def loc():
                         inst_id = locations_inst[key][i]
 
                         # GET LIBRARY ID
-                        res = session.get(
-                            f"{okapi}/location-units/libraries?query=(name=={locations_lib[key][i]})",
-                            timeout=30
-                        ).json()
+                        try:
+                            res_response = make_request_with_retry(session, 'GET', f"{okapi}/location-units/libraries?query=(name=={locations_lib[key][i]})")
+                            if res_response is None:
+                                warn = f"Failed to query library '{locations_lib[key][i]}' after retries"
+                                st.warning(warn)
+                                error_messages.append(warn)
+                                continue
+                            res = res_response.json()
+                        except Exception as e:
+                            warn = f"Error querying library '{locations_lib[key][i]}': {str(e)}"
+                            st.warning(warn)
+                            error_messages.append(warn)
+                            continue
                         libraries = res.get("loclibs") or []
                         if not libraries:
                             warn = (
@@ -346,6 +475,10 @@ def loc():
                 # Update session state with newly created items
                 st.session_state.created_locations.extend(session_created_locations)
                 st.session_state.created_service_points.extend(session_created_service_points)
+                
+                # Remove duplicates
+                st.session_state.created_locations = list(set(st.session_state.created_locations))
+                st.session_state.created_service_points = list(set(st.session_state.created_service_points))
                 
                 # Clear progress indicators
                 progress_bar.empty()

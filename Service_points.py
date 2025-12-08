@@ -1,8 +1,10 @@
 import streamlit as st
 import requests
 import json
+import time
 
 from legacy_session_state import legacy_session_state
+from connection_manager import safe_request, get_connection_details
 
 # Get session state of legacy session
 legacy_session_state()
@@ -17,9 +19,8 @@ if not st.session_state.get('okapi'):
 if not st.session_state.get('token'):
     st.session_state['token'] = st.session_state.get('token', '')
 
-def create_sp(sp_name,sp_code,disp_name,desc,okapi,tenant,token):
+def create_sp(sp_name,sp_code,disp_name,desc,okapi,tenant,token, max_retries=3):
     spurl=f'{okapi}/service-points'
-    headers = {"x-okapi-tenant": f"{tenant}", "x-okapi-token": f"{token}"}
     to_do= {
   "name" : f"{sp_name}",
   "code" : f"{sp_code}",
@@ -27,7 +28,12 @@ def create_sp(sp_name,sp_code,disp_name,desc,okapi,tenant,token):
   "description" : f"{desc}"
 
     }
-    response = requests.post(spurl, data=json.dumps(to_do), headers=headers)
+    
+    # Use connection_manager for automatic retry and token refresh
+    response = safe_request('POST', spurl, json_data=to_do, max_retries=max_retries)
+    
+    if response is None:
+        return False, f"Failed to create Service Point '{sp_name}' after {max_retries} attempts", False
     
     # Parse response and show user-friendly message
     if response.status_code == 201:
@@ -108,10 +114,8 @@ def create_libraries(libraryname, librarycode, campusuuid,okapi,tenant,token):
             pass
     return True, None
 
-def create_locations(locationname, locationcode, displayname, instuuid, campusuuid, libuuid, spprimaryuuid, splistuuid,okapi,tenant,token):
+def create_locations(locationname, locationcode, displayname, instuuid, campusuuid, libuuid, spprimaryuuid, splistuuid,okapi,tenant,token, max_retries=3):
     locurl=f'{okapi}/locations'
-    headers = {"x-okapi-tenant": f"{tenant}", "x-okapi-token": f"{token}"}
-
 
     to_do={
 
@@ -128,7 +132,11 @@ def create_locations(locationname, locationcode, displayname, instuuid, campusuu
 
 }
 
-    response = requests.post(locurl, data=json.dumps(to_do), headers=headers)
+    # Use connection_manager for automatic retry and token refresh
+    response = safe_request('POST', locurl, json_data=to_do, max_retries=max_retries)
+    
+    if response is None:
+        return False, f"Failed to create location '{locationname}' after {max_retries} attempts", False
     if response.status_code == 201:
         return True, None, True  # Success - created (newly created)
     elif response.status_code == 422:
@@ -155,10 +163,12 @@ def create_locations(locationname, locationcode, displayname, instuuid, campusuu
 def delete_location(location_id, okapi, tenant, token):
     """Delete a location by ID"""
     locurl = f'{okapi}/locations/{location_id}'
-    headers = {"x-okapi-tenant": f"{tenant}", "x-okapi-token": f"{token}"}
     
     try:
-        response = requests.delete(locurl, headers=headers)
+        response = safe_request('DELETE', locurl, max_retries=3)
+        if response is None:
+            return False, "Failed to delete location after retries"
+        
         if response.status_code == 204:
             return True, None  # Success - deleted
         elif response.status_code == 404:
@@ -177,10 +187,12 @@ def delete_location(location_id, okapi, tenant, token):
 def delete_service_point(sp_id, okapi, tenant, token):
     """Delete a service point by ID"""
     spurl = f'{okapi}/service-points/{sp_id}'
-    headers = {"x-okapi-tenant": f"{tenant}", "x-okapi-token": f"{token}"}
     
     try:
-        response = requests.delete(spurl, headers=headers)
+        response = safe_request('DELETE', spurl, max_retries=3)
+        if response is None:
+            return False, "Failed to delete service point after retries"
+        
         if response.status_code == 204:
             return True, None  # Success - deleted
         elif response.status_code == 404:
@@ -199,11 +211,10 @@ def delete_service_point(sp_id, okapi, tenant, token):
 def get_location_by_code(location_code, okapi, tenant, token):
     """Get location ID by code"""
     locurl = f'{okapi}/locations?query=(code=={location_code})'
-    headers = {"x-okapi-tenant": f"{tenant}", "x-okapi-token": f"{token}"}
     
     try:
-        response = requests.get(locurl, headers=headers)
-        if response.status_code == 200:
+        response = safe_request('GET', locurl, max_retries=3)
+        if response and response.status_code == 200:
             data = response.json()
             locations = data.get('locations', [])
             if locations:
@@ -215,11 +226,10 @@ def get_location_by_code(location_code, okapi, tenant, token):
 def get_service_point_by_code(sp_code, okapi, tenant, token):
     """Get service point ID by code"""
     spurl = f'{okapi}/service-points?query=(code=={sp_code})'
-    headers = {"x-okapi-tenant": f"{tenant}", "x-okapi-token": f"{token}"}
     
     try:
-        response = requests.get(spurl, headers=headers)
-        if response.status_code == 200:
+        response = safe_request('GET', spurl, max_retries=3)
+        if response and response.status_code == 200:
             data = response.json()
             service_points = data.get('servicepoints', [])
             if service_points:
