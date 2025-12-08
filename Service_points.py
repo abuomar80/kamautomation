@@ -223,6 +223,27 @@ def get_location_by_code(location_code, okapi, tenant, token):
     except:
         return None
 
+def get_location_details_by_code(location_code, okapi, tenant, token):
+    """Get full location details by code (ID, name, creation date)"""
+    locurl = f'{okapi}/locations?query=(code=={location_code})'
+    
+    try:
+        response = safe_request('GET', locurl, max_retries=3)
+        if response and response.status_code == 200:
+            data = response.json()
+            locations = data.get('locations', [])
+            if locations:
+                loc = locations[0]
+                return {
+                    'id': loc.get('id'),
+                    'name': loc.get('name'),
+                    'code': loc.get('code'),
+                    'metadata': loc.get('metadata', {})
+                }
+        return None
+    except:
+        return None
+
 def get_service_point_by_code(sp_code, okapi, tenant, token):
     """Get service point ID by code"""
     spurl = f'{okapi}/service-points?query=(code=={sp_code})'
@@ -234,6 +255,27 @@ def get_service_point_by_code(sp_code, okapi, tenant, token):
             service_points = data.get('servicepoints', [])
             if service_points:
                 return service_points[0].get('id')
+        return None
+    except:
+        return None
+
+def get_service_point_details_by_code(sp_code, okapi, tenant, token):
+    """Get full service point details by code (ID, name, creation date)"""
+    spurl = f'{okapi}/service-points?query=(code=={sp_code})'
+    
+    try:
+        response = safe_request('GET', spurl, max_retries=3)
+        if response and response.status_code == 200:
+            data = response.json()
+            service_points = data.get('servicepoints', [])
+            if service_points:
+                sp = service_points[0]
+                return {
+                    'id': sp.get('id'),
+                    'name': sp.get('name'),
+                    'code': sp.get('code'),
+                    'metadata': sp.get('metadata', {})
+                }
         return None
     except:
         return None

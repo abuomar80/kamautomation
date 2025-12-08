@@ -1,7 +1,8 @@
 import streamlit as st
 from Service_points import (
     create_sp, create_institutions, create_campuses, create_libraries, create_locations,
-    delete_location, delete_service_point, get_location_by_code, get_service_point_by_code
+    delete_location, delete_service_point, get_location_by_code, get_service_point_by_code,
+    get_location_details_by_code, get_service_point_details_by_code
 )
 from Upload import upload
 import pandas as pd
@@ -11,6 +12,7 @@ from legacy_session_state import legacy_session_state
 from connection_manager import get_session, make_request_with_retry, periodic_connection_check, validate_connection
 import time
 import json
+import datetime
 
 legacy_session_state()
 
@@ -56,144 +58,151 @@ def loc():
     if bool(selected_rows):
         selection = pd.DataFrame(selected_rows)
 
-        col1, col2, col3 = st.columns(3)
+        col1, col2 = st.columns(2)
         with col1:
             createLoc = st.button("Create locations", type="primary")
         with col2:
             deleteLoc = st.button("🗑️ Delete Created Items", type="secondary")
-        with col3:
-            scanLoc = st.button("🔍 Scan for Created Items", type="secondary")
         
-        # Initialize session state for tracking created items
+        # Initialize session state for tracking created items with details
         if 'created_locations' not in st.session_state:
-            st.session_state.created_locations = []
+            st.session_state.created_locations = []  # List of location codes
         if 'created_service_points' not in st.session_state:
-            st.session_state.created_service_points = []
+            st.session_state.created_service_points = []  # List of service point codes
+        if 'created_items_details' not in st.session_state:
+            st.session_state.created_items_details = {}  # Dict with code -> {uuid, name, creation_date}
         
         # Display current tracking status
         if st.session_state.created_locations or st.session_state.created_service_points:
-            with st.expander(f"📝 View Tracked Items ({len(st.session_state.created_locations)} locations, {len(st.session_state.created_service_points)} service points)", expanded=False):
-                if st.session_state.created_locations:
-                    st.write("**Locations to delete:**")
-                    for loc_code in st.session_state.created_locations:
-                        st.write(f"  - {loc_code}")
-                if st.session_state.created_service_points:
-                    st.write("**Service Points to delete:**")
-                    for sp_code in st.session_state.created_service_points:
-                        st.write(f"  - {sp_code}")
-                if st.button("Clear Tracking List", key="clear_tracking"):
-                    st.session_state.created_locations = []
-                    st.session_state.created_service_points = []
-                    st.success("Tracking list cleared!")
-                    st.rerun()
-        else:
-            st.info("ℹ️ No items tracked yet. Items will be automatically tracked when created, or use 'Scan for Created Items' to find existing items from selected rows.")
+            st.info(f"📝 {len(st.session_state.created_locations)} location(s) and {len(st.session_state.created_service_points)} service point(s) ready for deletion")
         
-        # Handle scan button - find locations and service points from selected rows
-        if scanLoc:
-            if selection.empty:
-                st.warning("⚠️ Please select rows first before scanning.")
-            else:
-                scan_progress = st.progress(0)
-                scan_status = st.empty()
-                scanned_locations = []
-                scanned_service_points = []
-                total_rows = len(selection)
-                
-                for idx, (index, row) in enumerate(selection.iterrows()):
-                    scan_progress.progress((idx + 1) / total_rows)
-                    scan_status.text(f"Scanning row {idx + 1} of {total_rows}...")
-                    
-                    sp_code = str(row["ServicePoints Codes"]).strip()
-                    location_code = str(row["LocationsCodes"]).strip()
-                    
-                    # Check if service point exists
-                    if sp_code:
-                        sp_id = get_service_point_by_code(sp_code, okapi, tenant, token)
-                        if sp_id and sp_code not in st.session_state.created_service_points:
-                            scanned_service_points.append(sp_code)
-                    
-                    # Check if location exists
-                    if location_code:
-                        loc_id = get_location_by_code(location_code, okapi, tenant, token)
-                        if loc_id and location_code not in st.session_state.created_locations:
-                            scanned_locations.append(location_code)
-                
-                scan_progress.empty()
-                scan_status.empty()
-                
-                # Add scanned items to session state
-                st.session_state.created_locations.extend(scanned_locations)
-                st.session_state.created_service_points.extend(scanned_service_points)
-                
-                # Remove duplicates
-                st.session_state.created_locations = list(set(st.session_state.created_locations))
-                st.session_state.created_service_points = list(set(st.session_state.created_service_points))
-                
-                if scanned_locations or scanned_service_points:
-                    st.success(f"✅ Found {len(scanned_locations)} location(s) and {len(scanned_service_points)} service point(s) from selected rows!")
-                    st.rerun()
-                else:
-                    st.info("ℹ️ No new items found in selected rows. Items may already be tracked or don't exist.")
-        
-        # Handle delete button
+        # Handle delete button with confirmation
         if deleteLoc:
             if not st.session_state.created_locations and not st.session_state.created_service_points:
-                st.warning("⚠️ No items to delete. Create locations first or use 'Scan for Created Items' to find existing items.")
+                st.warning("⚠️ No items to delete. Items are automatically tracked when created.")
             else:
-                with st.spinner('Deleting created items...'):
-                    delete_progress = st.progress(0)
-                    delete_status = st.empty()
-                    
-                    total_items = len(st.session_state.created_locations) + len(st.session_state.created_service_points)
-                    deleted_count = 0
-                    delete_errors = []
-                    
-                    # Delete locations
-                    for loc_code in st.session_state.created_locations[:]:
-                        delete_status.text(f"Deleting location: {loc_code}...")
-                        loc_id = get_location_by_code(loc_code, okapi, tenant, token)
-                        if loc_id:
-                            success, error_msg = delete_location(loc_id, okapi, tenant, token)
+                # First, fetch details for all items to show in confirmation
+                st.subheader("⚠️ Confirm Deletion")
+                st.write("The following items will be deleted:")
+                
+                items_to_delete = []
+                details_fetch_progress = st.progress(0)
+                details_status = st.empty()
+                
+                # Fetch location details
+                location_details_list = []
+                for idx, loc_code in enumerate(st.session_state.created_locations):
+                    details_status.text(f"Fetching details for location: {loc_code}...")
+                    details = get_location_details_by_code(loc_code, okapi, tenant, token)
+                    if details:
+                        creation_date = details.get('metadata', {}).get('createdDate', 'N/A')
+                        location_details_list.append({
+                            'type': 'location',
+                            'code': loc_code,
+                            'uuid': details.get('id', 'N/A'),
+                            'name': details.get('name', loc_code),
+                            'creation_date': creation_date
+                        })
+                    details_fetch_progress.progress((idx + 1) / (len(st.session_state.created_locations) + len(st.session_state.created_service_points)))
+                
+                # Fetch service point details
+                service_point_details_list = []
+                start_idx = len(st.session_state.created_locations)
+                for idx, sp_code in enumerate(st.session_state.created_service_points):
+                    details_status.text(f"Fetching details for service point: {sp_code}...")
+                    details = get_service_point_details_by_code(sp_code, okapi, tenant, token)
+                    if details:
+                        creation_date = details.get('metadata', {}).get('createdDate', 'N/A')
+                        service_point_details_list.append({
+                            'type': 'service_point',
+                            'code': sp_code,
+                            'uuid': details.get('id', 'N/A'),
+                            'name': details.get('name', sp_code),
+                            'creation_date': creation_date
+                        })
+                    details_fetch_progress.progress((start_idx + idx + 1) / (len(st.session_state.created_locations) + len(st.session_state.created_service_points)))
+                
+                details_fetch_progress.empty()
+                details_status.empty()
+                
+                # Display confirmation table
+                if location_details_list:
+                    st.write("**Locations to be deleted:**")
+                    loc_data = {
+                        'UUID': [item['uuid'] for item in location_details_list],
+                        'Name': [item['name'] for item in location_details_list],
+                        'Code': [item['code'] for item in location_details_list],
+                        'Creation Date': [item['creation_date'] for item in location_details_list]
+                    }
+                    st.dataframe(pd.DataFrame(loc_data), use_container_width=True)
+                
+                if service_point_details_list:
+                    st.write("**Service Points to be deleted:**")
+                    sp_data = {
+                        'UUID': [item['uuid'] for item in service_point_details_list],
+                        'Name': [item['name'] for item in service_point_details_list],
+                        'Code': [item['code'] for item in service_point_details_list],
+                        'Creation Date': [item['creation_date'] for item in service_point_details_list]
+                    }
+                    st.dataframe(pd.DataFrame(sp_data), use_container_width=True)
+                
+                # Confirmation buttons
+                confirm_col1, confirm_col2 = st.columns(2)
+                with confirm_col1:
+                    confirm_delete = st.button("✅ Confirm Deletion", type="primary", key="confirm_delete")
+                with confirm_col2:
+                    cancel_delete = st.button("❌ Cancel", key="cancel_delete")
+                
+                if cancel_delete:
+                    st.info("Deletion cancelled.")
+                elif confirm_delete:
+                    with st.spinner('Deleting items...'):
+                        delete_progress = st.progress(0)
+                        delete_status = st.empty()
+                        
+                        total_items = len(location_details_list) + len(service_point_details_list)
+                        deleted_count = 0
+                        delete_errors = []
+                        
+                        # Delete locations
+                        for idx, item in enumerate(location_details_list):
+                            delete_status.text(f"Deleting location: {item['name']} ({item['code']})...")
+                            success, error_msg = delete_location(item['uuid'], okapi, tenant, token)
                             if success:
-                                st.session_state.created_locations.remove(loc_code)
+                                if item['code'] in st.session_state.created_locations:
+                                    st.session_state.created_locations.remove(item['code'])
                                 deleted_count += 1
                             else:
-                                delete_errors.append(f"Location '{loc_code}': {error_msg}")
-                        else:
-                            st.session_state.created_locations.remove(loc_code)
-                            deleted_count += 1
+                                delete_errors.append(f"Location '{item['name']}' ({item['code']}): {error_msg}")
+                            
+                            delete_progress.progress((idx + 1) / total_items if total_items > 0 else 1.0)
+                            time.sleep(0.1)
                         
-                        delete_progress.progress(deleted_count / total_items if total_items > 0 else 1.0)
-                        time.sleep(0.1)  # Small delay to prevent overwhelming the API
-                    
-                    # Delete service points
-                    for sp_code in st.session_state.created_service_points[:]:
-                        delete_status.text(f"Deleting service point: {sp_code}...")
-                        sp_id = get_service_point_by_code(sp_code, okapi, tenant, token)
-                        if sp_id:
-                            success, error_msg = delete_service_point(sp_id, okapi, tenant, token)
+                        # Delete service points
+                        start_idx = len(location_details_list)
+                        for idx, item in enumerate(service_point_details_list):
+                            delete_status.text(f"Deleting service point: {item['name']} ({item['code']})...")
+                            success, error_msg = delete_service_point(item['uuid'], okapi, tenant, token)
                             if success:
-                                st.session_state.created_service_points.remove(sp_code)
+                                if item['code'] in st.session_state.created_service_points:
+                                    st.session_state.created_service_points.remove(item['code'])
                                 deleted_count += 1
                             else:
-                                delete_errors.append(f"Service Point '{sp_code}': {error_msg}")
-                        else:
-                            st.session_state.created_service_points.remove(sp_code)
-                            deleted_count += 1
+                                delete_errors.append(f"Service Point '{item['name']}' ({item['code']}): {error_msg}")
+                            
+                            delete_progress.progress((start_idx + idx + 1) / total_items if total_items > 0 else 1.0)
+                            time.sleep(0.1)
                         
-                        delete_progress.progress(deleted_count / total_items if total_items > 0 else 1.0)
-                        time.sleep(0.1)  # Small delay to prevent overwhelming the API
-                    
-                    delete_progress.empty()
-                    delete_status.empty()
-                    
-                    if delete_errors:
-                        st.error(f"❌ Some items could not be deleted:")
-                        for err in delete_errors:
-                            st.error(f"  - {err}")
-                    else:
-                        st.success(f"✅ Successfully deleted {deleted_count} item(s)!")
+                        delete_progress.empty()
+                        delete_status.empty()
+                        
+                        if delete_errors:
+                            st.error(f"❌ Some items could not be deleted:")
+                            for err in delete_errors:
+                                st.error(f"  - {err}")
+                        else:
+                            st.success(f"✅ Successfully deleted {deleted_count} item(s)!")
+                            st.rerun()
         
         if createLoc:
             # CREATE EMPTY DICTIONARIES TO STORE DATA IN
@@ -287,9 +296,17 @@ def loc():
                     # Create service point and handle response (already exists = success, no message)
                     success, error_msg, was_created = create_sp(sp_name, sp_code, sp_name, sp_name, okapi, tenant, token)
                     if success and was_created:
-                        # Track newly created service point
+                            # Track newly created service point
                         if sp_code not in st.session_state.created_service_points:
                             session_created_service_points.append(sp_code)
+                            # Store creation timestamp
+                            if 'created_items_details' not in st.session_state:
+                                st.session_state.created_items_details = {}
+                            st.session_state.created_items_details[f"sp_{sp_code}"] = {
+                                'code': sp_code,
+                                'name': sp_name,
+                                'created_at': datetime.datetime.now().isoformat()
+                            }
                     if not success and error_msg:
                         error_messages.append(error_msg)
                         st.warning(f"⚠️ Service Point '{sp_name}': {error_msg}")
