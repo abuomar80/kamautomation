@@ -31,27 +31,27 @@ def create_sp(sp_name,sp_code,disp_name,desc,okapi,tenant,token):
     
     # Parse response and show user-friendly message
     if response.status_code == 201:
-        return True, None  # Success - created
+        return True, None, True  # Success - created (newly created)
     elif response.status_code == 422:
         try:
             error_data = response.json()
             if 'errors' in error_data and len(error_data['errors']) > 0:
                 error_msg = error_data['errors'][0].get('message', 'Unknown error')
                 if 'Service Point Exists' in error_msg or 'already exists' in error_msg.lower():
-                    return True, None  # Already exists = success (no error)
-                return False, error_msg
+                    return True, None, False  # Already exists = success (no error, not newly created)
+                return False, error_msg, False
         except:
             pass
         # 422 with no parseable error - assume it's a duplicate (exists)
-        return True, None
+        return True, None, False
     else:
         try:
             error_data = response.json()
             if 'errors' in error_data:
-                return False, error_data['errors'][0].get('message', 'Unknown error')
+                return False, error_data['errors'][0].get('message', 'Unknown error'), False
         except:
             pass
-        return False, f"Error creating Service Point '{sp_name}' (Status: {response.status_code})"
+        return False, f"Error creating Service Point '{sp_name}' (Status: {response.status_code})", False
 def create_institutions(inistname,insticode,okapi,tenant,token):
     insurl=f'{okapi}/location-units/institutions'
     headers = {"x-okapi-tenant": f"{tenant}", "x-okapi-token": f"{token}"}
@@ -130,24 +130,100 @@ def create_locations(locationname, locationcode, displayname, instuuid, campusuu
 
     response = requests.post(locurl, data=json.dumps(to_do), headers=headers)
     if response.status_code == 201:
-        return True, None  # Success - created
+        return True, None, True  # Success - created (newly created)
     elif response.status_code == 422:
         try:
             error_data = response.json()
             if 'errors' in error_data:
                 error_msg = error_data['errors'][0].get('message', 'Location already exists')
                 if 'already exists' in error_msg.lower() or 'exists' in error_msg.lower():
-                    return True, None  # Already exists = success (no error)
-                return False, error_msg
+                    return True, None, False  # Already exists = success (no error, not newly created)
+                return False, error_msg, False
         except:
             pass
         # 422 with no parseable error - assume it's a duplicate (exists)
-        return True, None
+        return True, None, False
     else:
         try:
             error_data = response.json()
             if 'errors' in error_data:
-                return False, error_data['errors'][0].get('message', 'Unknown error')
+                return False, error_data['errors'][0].get('message', 'Unknown error'), False
         except:
             pass
-        return False, f"Error creating location (Status: {response.status_code})"
+        return False, f"Error creating location (Status: {response.status_code})", False
+
+def delete_location(location_id, okapi, tenant, token):
+    """Delete a location by ID"""
+    locurl = f'{okapi}/locations/{location_id}'
+    headers = {"x-okapi-tenant": f"{tenant}", "x-okapi-token": f"{token}"}
+    
+    try:
+        response = requests.delete(locurl, headers=headers)
+        if response.status_code == 204:
+            return True, None  # Success - deleted
+        elif response.status_code == 404:
+            return True, None  # Already deleted or doesn't exist
+        else:
+            try:
+                error_data = response.json()
+                if 'errors' in error_data:
+                    return False, error_data['errors'][0].get('message', 'Unknown error')
+            except:
+                pass
+            return False, f"Error deleting location (Status: {response.status_code})"
+    except Exception as e:
+        return False, f"Exception deleting location: {str(e)}"
+
+def delete_service_point(sp_id, okapi, tenant, token):
+    """Delete a service point by ID"""
+    spurl = f'{okapi}/service-points/{sp_id}'
+    headers = {"x-okapi-tenant": f"{tenant}", "x-okapi-token": f"{token}"}
+    
+    try:
+        response = requests.delete(spurl, headers=headers)
+        if response.status_code == 204:
+            return True, None  # Success - deleted
+        elif response.status_code == 404:
+            return True, None  # Already deleted or doesn't exist
+        else:
+            try:
+                error_data = response.json()
+                if 'errors' in error_data:
+                    return False, error_data['errors'][0].get('message', 'Unknown error')
+            except:
+                pass
+            return False, f"Error deleting service point (Status: {response.status_code})"
+    except Exception as e:
+        return False, f"Exception deleting service point: {str(e)}"
+
+def get_location_by_code(location_code, okapi, tenant, token):
+    """Get location ID by code"""
+    locurl = f'{okapi}/locations?query=(code=={location_code})'
+    headers = {"x-okapi-tenant": f"{tenant}", "x-okapi-token": f"{token}"}
+    
+    try:
+        response = requests.get(locurl, headers=headers)
+        if response.status_code == 200:
+            data = response.json()
+            locations = data.get('locations', [])
+            if locations:
+                return locations[0].get('id')
+        return None
+    except:
+        return None
+
+def get_service_point_by_code(sp_code, okapi, tenant, token):
+    """Get service point ID by code"""
+    spurl = f'{okapi}/service-points?query=(code=={sp_code})'
+    headers = {"x-okapi-tenant": f"{tenant}", "x-okapi-token": f"{token}"}
+    
+    try:
+        response = requests.get(spurl, headers=headers)
+        if response.status_code == 200:
+            data = response.json()
+            service_points = data.get('servicepoints', [])
+            if service_points:
+                return service_points[0].get('id')
+        return None
+    except:
+        return None
