@@ -13,6 +13,7 @@ from connection_manager import get_session, make_request_with_retry, periodic_co
 import time
 import json
 import datetime
+import hashlib
 
 legacy_session_state()
 
@@ -224,12 +225,13 @@ def loc():
                         })
                         st.dataframe(selected_sp_df_display[['UUID', 'Name', 'Code', 'Creation Date']], use_container_width=True)
                     
-                    # Confirmation buttons
+                    # Confirmation buttons - use unique keys to avoid conflicts
+                    unique_suffix = hashlib.md5(f"{len(selected_locations)}_{len(selected_service_points)}".encode()).hexdigest()[:8]
                     confirm_col1, confirm_col2 = st.columns(2)
                     with confirm_col1:
-                        confirm_delete = st.button("✅ Confirm Deletion", type="primary", key="confirm_delete")
+                        confirm_delete = st.button("✅ Confirm Deletion", type="primary", key=f"loc_confirm_del_{unique_suffix}")
                     with confirm_col2:
-                        cancel_delete = st.button("❌ Cancel", key="cancel_delete")
+                        cancel_delete = st.button("❌ Cancel", key=f"loc_cancel_del_{unique_suffix}")
                     
                     if cancel_delete:
                         st.info("Deletion cancelled.")
