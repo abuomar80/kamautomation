@@ -203,12 +203,26 @@ def loc():
                     if selected_locations:
                         st.write("**Selected Locations:**")
                         selected_loc_df = pd.DataFrame(selected_locations)
-                        st.dataframe(selected_loc_df[['UUID', 'Name', 'Code', 'creation_date']], use_container_width=True)
+                        # Rename columns for display
+                        selected_loc_df_display = selected_loc_df.rename(columns={
+                            'uuid': 'UUID',
+                            'name': 'Name',
+                            'code': 'Code',
+                            'creation_date': 'Creation Date'
+                        })
+                        st.dataframe(selected_loc_df_display[['UUID', 'Name', 'Code', 'Creation Date']], use_container_width=True)
                     
                     if selected_service_points:
                         st.write("**Selected Service Points:**")
                         selected_sp_df = pd.DataFrame(selected_service_points)
-                        st.dataframe(selected_sp_df[['UUID', 'Name', 'Code', 'creation_date']], use_container_width=True)
+                        # Rename columns for display
+                        selected_sp_df_display = selected_sp_df.rename(columns={
+                            'uuid': 'UUID',
+                            'name': 'Name',
+                            'code': 'Code',
+                            'creation_date': 'Creation Date'
+                        })
+                        st.dataframe(selected_sp_df_display[['UUID', 'Name', 'Code', 'Creation Date']], use_container_width=True)
                     
                     # Confirmation buttons
                     confirm_col1, confirm_col2 = st.columns(2)
