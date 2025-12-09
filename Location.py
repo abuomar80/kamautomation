@@ -389,7 +389,7 @@ def loc():
                             error_messages.append(f"Institution '{institution_name}' not found after creation")
                             continue
                         result = result_response.json()
-                    insID = result['locinsts'][0]['id']
+                        insID = result['locinsts'][0]['id']
                     except Exception as e:
                         error_messages.append(f"Error getting institution ID for '{institution_name}': {str(e)}")
                         continue
@@ -416,7 +416,7 @@ def loc():
                             error_messages.append(f"Campus '{campus_name}' not found after creation")
                             continue
                         result = result_response.json()
-                    campusID = result['loccamps'][0]['id']
+                        campusID = result['loccamps'][0]['id']
                     except Exception as e:
                         error_messages.append(f"Error getting campus ID for '{campus_name}': {str(e)}")
                         continue
