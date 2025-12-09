@@ -155,43 +155,89 @@ def loc():
                         'Creation Date': metadata.get('createdDate', 'N/A')
                     })
                 
+                # Initialize session state for selected items if not exists
+                if 'delete_selected_locations' not in st.session_state:
+                    st.session_state.delete_selected_locations = []
+                if 'delete_selected_service_points' not in st.session_state:
+                    st.session_state.delete_selected_service_points = []
+                
                 # Display locations table with selection
                 if location_data_list:
                     st.write("**Locations:**")
                     loc_df = pd.DataFrame(location_data_list)
                     
-                    # Add checkboxes for selection
+                    # Use session state to persist selections and prevent refresh issues
                     selected_locations = []
                     for idx, row in loc_df.iterrows():
-                        if st.checkbox(f"Delete {row['Name']} ({row['Code']})", key=f"loc_{row['UUID']}"):
-                            selected_locations.append({
+                        checkbox_key = f"loc_check_{row['UUID']}"
+                        # Initialize checkbox state in session state
+                        if checkbox_key not in st.session_state:
+                            st.session_state[checkbox_key] = False
+                        
+                        # Checkbox with session state
+                        checked = st.checkbox(
+                            f"Delete {row['Name']} ({row['Code']})", 
+                            value=st.session_state[checkbox_key],
+                            key=checkbox_key
+                        )
+                        
+                        if checked:
+                            item = {
                                 'uuid': row['UUID'],
                                 'name': row['Name'],
                                 'code': row['Code'],
                                 'creation_date': row['Creation Date']
-                            })
+                            }
+                            # Only add if not already in list
+                            if not any(loc['uuid'] == item['uuid'] for loc in selected_locations):
+                                selected_locations.append(item)
+                    
+                    # Update session state
+                    st.session_state.delete_selected_locations = selected_locations
                     
                     if selected_locations:
-                        st.write(f"**{len(selected_locations)} location(s) selected for deletion**")
+                        st.info(f"**{len(selected_locations)} location(s) selected for deletion**")
                 
                 # Display service points table with selection
                 if service_point_data_list:
                     st.write("**Service Points:**")
                     sp_df = pd.DataFrame(service_point_data_list)
                     
-                    # Add checkboxes for selection
+                    # Use session state to persist selections
                     selected_service_points = []
                     for idx, row in sp_df.iterrows():
-                        if st.checkbox(f"Delete {row['Name']} ({row['Code']})", key=f"sp_{row['UUID']}"):
-                            selected_service_points.append({
+                        checkbox_key = f"sp_check_{row['UUID']}"
+                        # Initialize checkbox state in session state
+                        if checkbox_key not in st.session_state:
+                            st.session_state[checkbox_key] = False
+                        
+                        # Checkbox with session state
+                        checked = st.checkbox(
+                            f"Delete {row['Name']} ({row['Code']})", 
+                            value=st.session_state[checkbox_key],
+                            key=checkbox_key
+                        )
+                        
+                        if checked:
+                            item = {
                                 'uuid': row['UUID'],
                                 'name': row['Name'],
                                 'code': row['Code'],
                                 'creation_date': row['Creation Date']
-                            })
+                            }
+                            # Only add if not already in list
+                            if not any(sp['uuid'] == item['uuid'] for sp in selected_service_points):
+                                selected_service_points.append(item)
+                    
+                    # Update session state
+                    st.session_state.delete_selected_service_points = selected_service_points
                     
                     if selected_service_points:
-                        st.write(f"**{len(selected_service_points)} service point(s) selected for deletion**")
+                        st.info(f"**{len(selected_service_points)} service point(s) selected for deletion**")
+                
+                # Get selected items from session state
+                selected_locations = st.session_state.delete_selected_locations
+                selected_service_points = st.session_state.delete_selected_service_points
                 
                 # Confirmation section
                 total_selected = len(selected_locations) + len(selected_service_points)
@@ -235,50 +281,116 @@ def loc():
                     
                     if cancel_delete:
                         st.info("Deletion cancelled.")
+                        # Clear selections
+                        st.session_state.delete_selected_locations = []
+                        st.session_state.delete_selected_service_points = []
+                        # Clear checkbox states
+                        for loc in location_data_list:
+                            if f"loc_check_{loc['UUID']}" in st.session_state:
+                                st.session_state[f"loc_check_{loc['UUID']}"] = False
+                        for sp in service_point_data_list:
+                            if f"sp_check_{sp['UUID']}" in st.session_state:
+                                st.session_state[f"sp_check_{sp['UUID']}"] = False
+                        st.rerun()
                     elif confirm_delete:
-                        with st.spinner('Deleting items...'):
+                        # Create a status container for deletion progress
+                        status_container = st.container()
+                        with status_container:
+                            st.subheader("🔄 Deletion in Progress...")
                             delete_progress = st.progress(0)
                             delete_status = st.empty()
+                            results_container = st.empty()
                             
                             total_items = total_selected
                             deleted_count = 0
+                            failed_count = 0
                             delete_errors = []
+                            delete_success = []
                             
                             # Delete locations
-                            for idx, item in enumerate(selected_locations):
-                                delete_status.text(f"Deleting location: {item['name']} ({item['code']})...")
-                                success, error_msg = delete_location(item['uuid'], okapi, tenant, token)
-                                if success:
-                                    deleted_count += 1
-                                else:
-                                    delete_errors.append(f"Location '{item['name']}' ({item['code']}): {error_msg}")
-                                
-                                delete_progress.progress((idx + 1) / total_items if total_items > 0 else 1.0)
-                                time.sleep(0.1)
+                            if selected_locations:
+                                delete_status.markdown("**Deleting Locations...**")
+                                for idx, item in enumerate(selected_locations):
+                                    delete_status.text(f"Deleting location {idx + 1}/{len(selected_locations)}: {item['name']} ({item['code']})...")
+                                    try:
+                                        success, error_msg = delete_location(item['uuid'], okapi, tenant, token)
+                                        if success:
+                                            deleted_count += 1
+                                            delete_success.append(f"✅ Location '{item['name']}' ({item['code']}) - Deleted successfully")
+                                        else:
+                                            failed_count += 1
+                                            delete_errors.append(f"❌ Location '{item['name']}' ({item['code']}): {error_msg}")
+                                    except Exception as e:
+                                        failed_count += 1
+                                        delete_errors.append(f"❌ Location '{item['name']}' ({item['code']}): Exception - {str(e)}")
+                                    
+                                    delete_progress.progress((idx + 1) / total_items if total_items > 0 else 1.0)
+                                    time.sleep(0.1)
                             
                             # Delete service points
-                            start_idx = len(selected_locations)
-                            for idx, item in enumerate(selected_service_points):
-                                delete_status.text(f"Deleting service point: {item['name']} ({item['code']})...")
-                                success, error_msg = delete_service_point(item['uuid'], okapi, tenant, token)
-                                if success:
-                                    deleted_count += 1
-                                else:
-                                    delete_errors.append(f"Service Point '{item['name']}' ({item['code']}): {error_msg}")
-                                
-                                delete_progress.progress((start_idx + idx + 1) / total_items if total_items > 0 else 1.0)
-                                time.sleep(0.1)
+                            if selected_service_points:
+                                delete_status.markdown("**Deleting Service Points...**")
+                                start_idx = len(selected_locations)
+                                for idx, item in enumerate(selected_service_points):
+                                    delete_status.text(f"Deleting service point {idx + 1}/{len(selected_service_points)}: {item['name']} ({item['code']})...")
+                                    try:
+                                        success, error_msg = delete_service_point(item['uuid'], okapi, tenant, token)
+                                        if success:
+                                            deleted_count += 1
+                                            delete_success.append(f"✅ Service Point '{item['name']}' ({item['code']}) - Deleted successfully")
+                                        else:
+                                            failed_count += 1
+                                            delete_errors.append(f"❌ Service Point '{item['name']}' ({item['code']}): {error_msg}")
+                                    except Exception as e:
+                                        failed_count += 1
+                                        delete_errors.append(f"❌ Service Point '{item['name']}' ({item['code']}): Exception - {str(e)}")
+                                    
+                                    delete_progress.progress((start_idx + idx + 1) / total_items if total_items > 0 else 1.0)
+                                    time.sleep(0.1)
                             
+                            # Clear progress indicators
                             delete_progress.empty()
                             delete_status.empty()
                             
-                            if delete_errors:
-                                st.error(f"❌ Some items could not be deleted:")
-                                for err in delete_errors:
-                                    st.error(f"  - {err}")
-                            else:
-                                st.success(f"✅ Successfully deleted {deleted_count} item(s)!")
-                                st.rerun()
+                            # Display results
+                            with results_container.container():
+                                st.divider()
+                                st.subheader("📊 Deletion Results")
+                                
+                                # Summary
+                                if deleted_count > 0 and failed_count == 0:
+                                    st.success(f"✅ **Success!** All {deleted_count} item(s) deleted successfully!")
+                                elif deleted_count > 0 and failed_count > 0:
+                                    st.warning(f"⚠️ **Partial Success:** {deleted_count} item(s) deleted, {failed_count} item(s) failed")
+                                elif failed_count > 0:
+                                    st.error(f"❌ **Failed:** {failed_count} item(s) could not be deleted")
+                                
+                                # Show successful deletions
+                                if delete_success:
+                                    with st.expander(f"✅ Successful Deletions ({len(delete_success)})", expanded=True):
+                                        for msg in delete_success:
+                                            st.success(msg)
+                                
+                                # Show errors
+                                if delete_errors:
+                                    with st.expander(f"❌ Failed Deletions ({len(delete_errors)})", expanded=True):
+                                        for err in delete_errors:
+                                            st.error(err)
+                                
+                                # Clear selections after deletion
+                                st.session_state.delete_selected_locations = []
+                                st.session_state.delete_selected_service_points = []
+                                # Clear checkbox states
+                                for loc in location_data_list:
+                                    if f"loc_check_{loc['UUID']}" in st.session_state:
+                                        st.session_state[f"loc_check_{loc['UUID']}"] = False
+                                for sp in service_point_data_list:
+                                    if f"sp_check_{sp['UUID']}" in st.session_state:
+                                        st.session_state[f"sp_check_{sp['UUID']}"] = False
+                                
+                                # Refresh button
+                                if st.button("🔄 Refresh List", key="refresh_after_delete"):
+                                    st.rerun()
                 else:
                     st.info("ℹ️ Please select at least one item to delete.")
         
