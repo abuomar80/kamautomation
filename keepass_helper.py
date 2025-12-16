@@ -88,14 +88,26 @@ def get_database_path(tenant: str, base_dir: str = None) -> str:
     Can use custom path from authentication.yaml or default to local directory.
     Automatically detects user's OneDrive path for team collaboration.
     Supports both per-tenant databases and a single shared database file.
+    Also checks Streamlit session state for user-selected database file.
     
     Args:
         tenant: Tenant name
         base_dir: Base directory for databases (default: from config or application directory)
     
     Returns:
-        Full path to the .kdbx file
+        Full path to the .kdbx file or None if unavailable
     """
+    # First, check if user has selected a database file via UI
+    try:
+        import streamlit as st
+        if hasattr(st, 'session_state') and 'keepass_db_path' in st.session_state:
+            user_selected_path = st.session_state.keepass_db_path
+            if user_selected_path and os.path.exists(user_selected_path):
+                logger.info(f"Using user-selected database path: {user_selected_path}")
+                return user_selected_path
+    except:
+        pass  # Streamlit not available or session state not initialized
+    
     # Try to read custom database path from authentication.yaml
     database_file = None
     if base_dir is None:

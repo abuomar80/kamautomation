@@ -364,6 +364,46 @@ def create_users(selected_users: List[str]):
 st.title("User Creation")
 if st.session_state.allow_tenant:
     tenant_name = st.session_state.get('tenant') or st.session_state.get('tenant_name', '')
+    
+    # KeePass Database Selection Section
+    st.markdown("### 🔐 KeePass Database (Optional)")
+    keepass_col1, keepass_col2 = st.columns([4, 1])
+    
+    with keepass_col1:
+        current_db_path = st.session_state.get('keepass_db_path', '')
+        db_path_input = st.text_input(
+            "KeePass Database File (.kdbx)",
+            value=current_db_path,
+            placeholder="Paste the full path to your .kdbx file → Right-click file in Explorer → 'Copy as path'",
+            help="Optional: Passwords will be automatically saved to this KeePass database",
+            key="keepass_db_input"
+        )
+    
+    with keepass_col2:
+        st.markdown("<br>", unsafe_allow_html=True)
+        if st.button("💾 Set", help="Save the database path"):
+            if db_path_input and db_path_input.strip():
+                clean_path = db_path_input.strip().strip('"').strip("'")
+                if os.path.exists(clean_path) and clean_path.lower().endswith('.kdbx'):
+                    st.session_state.keepass_db_path = clean_path
+                    st.success(f"✓ {os.path.basename(clean_path)}")
+                elif not os.path.exists(clean_path):
+                    st.error("File not found")
+                else:
+                    st.error("Must be .kdbx")
+            else:
+                st.session_state.keepass_db_path = None
+                st.info("KeePass disabled")
+    
+    # Show status
+    if st.session_state.get('keepass_db_path'):
+        st.success(f"✅ KeePass: {os.path.basename(st.session_state.keepass_db_path)}")
+    else:
+        st.caption("ℹ️ KeePass disabled - credentials won't be saved")
+    
+    st.markdown("---")
+    
+    # User Selection
     user_options = ['portal_integration', 'kam_admin', 'helpdesk_admin', 'data_migration', 'api_user']
     if tenant_name:
         user_options.append(f'sip_{tenant_name}')
