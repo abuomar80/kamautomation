@@ -147,6 +147,12 @@ def get_database_path(tenant: str, base_dir: str = None) -> str:
     if database_file:
         db_filename = database_file
         logger.info(f"Using shared database file: {db_filename}")
+        
+        # If we're using a shared database file but fell back to local directory,
+        # it means OneDrive is unavailable - skip KeePass entirely
+        if base_dir == os.path.dirname(os.path.abspath(__file__)):
+            logger.warning("Shared database file requires OneDrive path - skipping KeePass (cloud environment)")
+            return None
     else:
         # Sanitize tenant name for filename
         safe_tenant = "".join(c for c in tenant if c.isalnum() or c in ('_', '-')).lower()
@@ -329,6 +335,11 @@ def save_credentials_to_keepass(
         
         # Get database path
         db_path = get_database_path(tenant)
+        
+        # If database path is None, OneDrive is required but unavailable
+        if db_path is None:
+            logger.info("KeePass database path unavailable (cloud environment)")
+            return False, "KeePass unavailable in cloud environment (optional)"
         
         # Check if database directory is accessible
         db_dir = os.path.dirname(db_path)
