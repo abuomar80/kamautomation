@@ -60,7 +60,11 @@ def generate_excel_template():
             'LibrariesName': ['Main Library', 'Main Library'],
             'LibrariesCodes': ['ML', 'ML'],
             'LocationsName': ['Main Library Desk', 'Reference Desk'],
-            'LocationsCodes': ['MLD', 'REF']
+            'LocationsCodes': ['MLD', 'REF'],
+            'InstitutionsName_AR': ['المؤسسة الرئيسية', 'المؤسسة الرئيسية'],
+            'CampusNames_AR': ['الحرم الرئيسي', 'الحرم الرئيسي'],
+            'LibrariesName_AR': ['المكتبة الرئيسية', 'المكتبة الرئيسية'],
+            'LocationsName_AR': ['مكتب المكتبة الرئيسية', 'مكتب المراجع']
         })
         location_df.to_excel(writer, sheet_name='Location', index=False)
         

@@ -8,6 +8,7 @@ import requests
 from st_aggrid import AgGrid, GridOptionsBuilder
 from legacy_session_state import legacy_session_state
 from connection_manager import get_session, make_request_with_retry, periodic_connection_check, validate_connection, safe_request
+from translation_helper import create_translation_for_entity
 import time
 import json
 import datetime
@@ -65,6 +66,11 @@ def loc():
             locations_lib = {}
             locations_camp = {}
             locations_inst = {}
+            
+            # Track translation data
+            location_translations = {}  # {location_code: arabic_name}
+            translation_success_count = 0
+            translation_failure_count = 0
 
             error_messages = []  # Track errors for summary
             total_rows = len(selection)
@@ -124,6 +130,16 @@ def loc():
                     library_code = str(row["LibrariesCodes"]).strip()
                     location_name = str(row["LocationsName"]).strip()
                     location_code = str(row["LocationsCodes"]).strip()
+                    
+                    # Read Arabic translation columns (optional)
+                    institution_name_ar = str(row.get("InstitutionsName_AR", "")).strip() if pd.notna(row.get("InstitutionsName_AR")) else ""
+                    campus_name_ar = str(row.get("CampusNames_AR", "")).strip() if pd.notna(row.get("CampusNames_AR")) else ""
+                    library_name_ar = str(row.get("LibrariesName_AR", "")).strip() if pd.notna(row.get("LibrariesName_AR")) else ""
+                    location_name_ar = str(row.get("LocationsName_AR", "")).strip() if pd.notna(row.get("LocationsName_AR")) else ""
+                    
+                    # Store location translation for later use
+                    if location_name_ar:
+                        location_translations[location_code] = location_name_ar
 
                     # Use retry logic for API calls
                     try:
@@ -174,7 +190,7 @@ def loc():
                         if not success and error_msg:
                             st.warning(f"⚠️ Institution '{institution_name}': {error_msg}")
 
-                    # GET INSTITUTION ID
+                    # GET INSTITUTION ID AND CREATE TRANSLATION
                     try:
                         result_response = make_request_with_retry(session, 'GET', f"{okapi}/location-units/institutions?query=(name=={institution_name})")
                         if result_response is None or not result_response.json().get('locinsts'):
@@ -182,6 +198,24 @@ def loc():
                             continue
                         result = result_response.json()
                         insID = result['locinsts'][0]['id']
+                        
+                        # Create translation if Arabic name provided
+                        if institution_name_ar:
+                            trans_success, trans_error = create_translation_for_entity(
+                                entity_id=insID,
+                                english_name=institution_name,
+                                arabic_name=institution_name_ar,
+                                entity_type='INSTITUTION',
+                                okapi=okapi,
+                                tenant=tenant,
+                                token=token
+                            )
+                            if trans_success:
+                                translation_success_count += 1
+                            else:
+                                translation_failure_count += 1
+                                if trans_error:
+                                    error_messages.append(f"Translation for institution '{institution_name}': {trans_error}")
                     except Exception as e:
                         error_messages.append(f"Error getting institution ID for '{institution_name}': {str(e)}")
                         continue
@@ -201,7 +235,7 @@ def loc():
                         if not success and error_msg:
                             st.warning(f"⚠️ Campus '{campus_name}': {error_msg}")
 
-                    # CREATING LIBRARIES
+                    # GET CAMPUS ID AND CREATE TRANSLATION
                     try:
                         result_response = make_request_with_retry(session, 'GET', f"{okapi}/location-units/campuses?query=(name=={campus_name})")
                         if result_response is None or not result_response.json().get('loccamps'):
@@ -209,6 +243,24 @@ def loc():
                             continue
                         result = result_response.json()
                         campusID = result['loccamps'][0]['id']
+                        
+                        # Create translation if Arabic name provided
+                        if campus_name_ar:
+                            trans_success, trans_error = create_translation_for_entity(
+                                entity_id=campusID,
+                                english_name=campus_name,
+                                arabic_name=campus_name_ar,
+                                entity_type='CAMPUS',
+                                okapi=okapi,
+                                tenant=tenant,
+                                token=token
+                            )
+                            if trans_success:
+                                translation_success_count += 1
+                            else:
+                                translation_failure_count += 1
+                                if trans_error:
+                                    error_messages.append(f"Translation for campus '{campus_name}': {trans_error}")
                     except Exception as e:
                         error_messages.append(f"Error getting campus ID for '{campus_name}': {str(e)}")
                         continue
@@ -227,6 +279,33 @@ def loc():
                         success, error_msg = create_libraries(library_name, library_code, campusID, okapi, tenant, token)
                         if not success and error_msg:
                             st.warning(f"⚠️ Library '{library_name}': {error_msg}")
+                        
+                        # Create translation if library was just created and Arabic name provided
+                        if success and library_name_ar:
+                            # Need to get library ID
+                            try:
+                                lib_response = make_request_with_retry(session, 'GET', f"{okapi}/location-units/libraries?query=(name=={library_name})")
+                                if lib_response and lib_response.json().get('loclibs'):
+                                    lib_data = lib_response.json()
+                                    lib_id = lib_data['loclibs'][0]['id']
+                                    
+                                    trans_success, trans_error = create_translation_for_entity(
+                                        entity_id=lib_id,
+                                        english_name=library_name,
+                                        arabic_name=library_name_ar,
+                                        entity_type='LIBRARY',
+                                        okapi=okapi,
+                                        tenant=tenant,
+                                        token=token
+                                    )
+                                    if trans_success:
+                                        translation_success_count += 1
+                                    else:
+                                        translation_failure_count += 1
+                                        if trans_error:
+                                            error_messages.append(f"Translation for library '{library_name}': {trans_error}")
+                            except Exception as e:
+                                error_messages.append(f"Error creating translation for library '{library_name}': {str(e)}")
 
                     # FILL LOCATION DICTIONARY
                     try:
@@ -328,6 +407,34 @@ def loc():
                             # Track newly created location
                             if code not in session_created_locations and code not in st.session_state.get('created_locations', []):
                                 session_created_locations.append(code)
+                            
+                            # Create translation for location if Arabic name provided for this specific location code
+                            if code in location_translations:
+                                location_ar = location_translations[code]
+                                try:
+                                    # Get location ID
+                                    loc_response = make_request_with_retry(session, 'GET', f"{okapi}/locations?query=(code=={code})")
+                                    if loc_response and loc_response.json().get('locations'):
+                                        loc_data = loc_response.json()
+                                        loc_id = loc_data['locations'][0]['id']
+                                        
+                                        trans_success, trans_error = create_translation_for_entity(
+                                            entity_id=loc_id,
+                                            english_name=key,
+                                            arabic_name=location_ar,
+                                            entity_type='LOCATION',
+                                            okapi=okapi,
+                                            tenant=tenant,
+                                            token=token
+                                        )
+                                        if trans_success:
+                                            translation_success_count += 1
+                                        else:
+                                            translation_failure_count += 1
+                                            if trans_error:
+                                                error_messages.append(f"Translation for location '{key}': {trans_error}")
+                                except Exception as e:
+                                    error_messages.append(f"Error creating translation for location '{key}': {str(e)}")
                         if not success and error_msg:
                             error_messages.append(f"Location '{key}': {error_msg}")
                             st.warning(f"⚠️ Location '{key}': {error_msg}")
@@ -352,9 +459,13 @@ def loc():
                 st.info(f"💡 {len(error_messages)} error(s) occurred - see warnings above for details.")
                 if session_created_locations or session_created_service_points:
                     st.info(f"📝 Created {len(session_created_locations)} location(s) and {len(session_created_service_points)} service point(s) in this session.")
+                if translation_success_count > 0 or translation_failure_count > 0:
+                    st.info(f"🌍 Translations: {translation_success_count} successful, {translation_failure_count} failed")
             else:
                 st.success("✅ Locations and Service Points have been created successfully!")
                 st.info("💡 All items were created or already existed.")
                 if session_created_locations or session_created_service_points:
                     st.info(f"📝 Created {len(session_created_locations)} location(s) and {len(session_created_service_points)} service point(s) in this session.")
+                if translation_success_count > 0:
+                    st.info(f"🌍 Successfully created {translation_success_count} translation(s)")
             st.session_state['allow_calendar'] = True

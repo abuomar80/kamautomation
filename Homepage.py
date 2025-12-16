@@ -82,7 +82,7 @@ if authentication_status:
         },
     }
     
-    st.sidebar.image(logo_image, use_column_width=True)
+    st.sidebar.image(logo_image, use_container_width=True)
     st.sidebar.markdown("## 📋 Navigation")
     st.sidebar.markdown("---")
     
