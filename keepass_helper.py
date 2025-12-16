@@ -118,10 +118,18 @@ def get_database_path(tenant: str, base_dir: str = None) -> str:
                             if onedrive_path:
                                 custom_db_path = custom_db_path.replace('{onedrive}', onedrive_path)
                                 custom_db_path = custom_db_path.replace('{OneDrive}', onedrive_path)
+                                custom_db_path = custom_db_path.replace('{ONEDRIVE}', onedrive_path)
                                 logger.info(f"Auto-detected OneDrive path: {onedrive_path}")
+                            else:
+                                logger.warning("Cannot find OneDrive folder - {onedrive} placeholder not replaced")
+                                logger.warning("KeePass will be unavailable (cloud environment or OneDrive not synced)")
+                                # Don't set base_dir - will fall back to local keepass_databases folder
+                                base_dir = None
+                                custom_db_path = None
                         
-                        base_dir = custom_db_path
-                        logger.info(f"Using custom database path: {base_dir}")
+                        if custom_db_path:
+                            base_dir = custom_db_path
+                            logger.info(f"Using custom database path: {base_dir}")
         except Exception as e:
             logger.warning(f"Could not read custom database path: {e}")
     
