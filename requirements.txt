@@ -54,6 +54,7 @@ beautifulsoup4==4.12.2
 soupsieve==2.4.1
 lxml==4.9.2
 pymarc==5.1.2
+pykeepass>=4.1.0
 
 # Authentication & Security
 bcrypt==4.0.1
@@ -61,6 +62,7 @@ PyJWT==2.6.0
 PySocks==1.7.1
 cffi==1.15.1
 pycparser==2.21
+cryptography>=41.0.0
 
 # Browser Automation
 selenium==4.8.3

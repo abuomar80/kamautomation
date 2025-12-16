@@ -9,7 +9,16 @@ cookie:
   expiry_days: 30
   key: 'so3w302o4leld'
   name: authentication
+
+keepass:
+  master_password: 'TkAkc2VKJk1lZEBEUEAkJHcwcmRT'
+  encoded: true
+  database_path: '{onedrive}\KAMSol - Documents\KeePassXC_KAM_Password'
+  database_file: 'KAM__Passwords.kdbx'
+
 preauthorized:
   emails:
   - ahmed.awada@naseej.com
   - omar.abdelfattah@naseej.com
+
+  

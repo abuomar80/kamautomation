@@ -469,3 +469,21 @@ test*.py
 test*.txt
 test*.xlsx
 test_*
+
+# KeePass databases (contains sensitive credentials)
+keepass_databases/
+*.kdbx
+
+# KeePass setup and temporary files
+*keepass_example*.yaml
+*_COMPLETE.yaml
+*_PATH.txt
+*_CONFIG.txt
+find_onedrive_path.py
+setup_keepass.py
+quick_encrypt.py
+encrypt_keepass_password.py
+KEEPASS_*.md
+TEAM_KEEPASS_*.md
+ADD_TO_AUTH_YAML.md
+ENCRYPTION_*.md

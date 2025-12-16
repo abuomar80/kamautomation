@@ -6,6 +6,7 @@ from legacy_session_state import legacy_session_state
 import string
 import secrets
 from permissions import apiperm, fullperms, circ, Acquisition, cataloging, admins, search, sip
+from keepass_helper import save_credentials_to_keepass, get_keepass_config
 
 legacy_session_state()
 
@@ -307,12 +308,34 @@ def create_users(selected_users: List[str]):
             set_preferred_service_point(okapi, base_headers, user_id)
 
             st.success(f"User ({username}) created. Password: {password}")
+            
+            # Save credentials to KeePass if configured
+            keepass_status = ""
+            keepass_config = get_keepass_config()
+            if keepass_config.get('enabled', False):
+                keepass_success, keepass_error = save_credentials_to_keepass(
+                    username=username,
+                    password=password,
+                    tenant=tenant,
+                    title=f"{username} ({resolved_permission})",
+                    notes=f"Created automatically via KAM Automation",
+                    url=okapi
+                )
+                if keepass_success:
+                    st.info(f"✓ Credentials saved to KeePass database")
+                    keepass_status = "saved"
+                else:
+                    st.warning(f"⚠ KeePass save failed: {keepass_error}")
+                    keepass_status = "failed"
+            else:
+                keepass_status = "disabled"
+            
             results.append(
                 {
                     "username": username,
                     "status": "created",
                     "password": password,
-                    "message": f"Assigned permission set '{resolved_permission}'.",
+                    "message": f"Assigned permission set '{resolved_permission}'. KeePass: {keepass_status}",
                 }
             )
 
