@@ -296,6 +296,7 @@ def save_credentials_to_keepass(
 ) -> Tuple[bool, Optional[str]]:
     """
     Save user credentials to the tenant's KeePass database.
+    Gracefully handles missing database paths (e.g., cloud deployments).
     
     Args:
         username: Username to save
@@ -304,7 +305,7 @@ def save_credentials_to_keepass(
         title: Optional entry title (defaults to username)
         notes: Optional notes for the entry
         url: Optional URL for the entry
-        master_password: Optional master password (uses env var if not provided)
+        master_password: Optional master password (uses config if not provided)
     
     Returns:
         Tuple of (success: bool, error_message: Optional[str])
@@ -315,10 +316,21 @@ def save_credentials_to_keepass(
             master_password = get_keepass_master_password()
         
         if not master_password:
-            return False, "KeePass master password not configured (set KEEPASS_MASTER_PASSWORD environment variable)"
+            logger.info("KeePass master password not configured - skipping KeePass save")
+            return False, "KeePass not configured (optional)"
         
         # Get database path
         db_path = get_database_path(tenant)
+        
+        # Check if database directory is accessible
+        db_dir = os.path.dirname(db_path)
+        if not os.path.exists(db_dir):
+            # Try to create it, but if we can't (e.g., cloud environment), skip gracefully
+            try:
+                os.makedirs(db_dir, exist_ok=True)
+            except Exception as dir_error:
+                logger.warning(f"Cannot access KeePass database directory (likely cloud deployment): {db_dir}")
+                return False, "KeePass unavailable in cloud environment (optional)"
         
         # Initialize database
         kp = init_keepass_db(db_path, master_password)
@@ -362,8 +374,8 @@ def save_credentials_to_keepass(
         logger.error(error_msg)
         return False, error_msg
     except Exception as e:
-        error_msg = f"Error saving to KeePass: {str(e)}"
-        logger.error(error_msg)
+        error_msg = f"KeePass save failed: {str(e)}"
+        logger.warning(f"{error_msg} (non-critical - continuing)")
         return False, error_msg
 
 

@@ -324,6 +324,10 @@ def create_users(selected_users: List[str]):
                 if keepass_success:
                     st.info(f"✓ Credentials saved to KeePass database")
                     keepass_status = "saved"
+                elif "optional" in keepass_error.lower() or "unavailable" in keepass_error.lower():
+                    # KeePass is optional - don't show as error
+                    st.caption(f"ℹ️ KeePass: {keepass_error}")
+                    keepass_status = "skipped"
                 else:
                     st.warning(f"⚠ KeePass save failed: {keepass_error}")
                     keepass_status = "failed"
