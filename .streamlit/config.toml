@@ -1,0 +1,21 @@
+[server]
+# Maximum file upload size in MB
+# Default is 200 MB, now increased to 1000 MB (1 GB)
+maxUploadSize = 1000
+
+# Enable file watcher for better development experience
+fileWatcherType = "auto"
+
+# Allow cross-origin requests (useful for development)
+enableCORS = false
+
+# Enable XSRF protection
+enableXsrfProtection = true
+
+[browser]
+# Automatically gather usage stats
+gatherUsageStats = false
+
+[theme]
+# You can customize theme here if needed
+# base = "light"
