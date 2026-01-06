@@ -1,7 +1,7 @@
 [server]
 # Maximum file upload size in MB
-# Default is 200 MB, now increased to 500 MB
-maxUploadSize = 500
+# Default is 200 MB, now increased to 800 MB
+maxUploadSize = 800
 
 # Enable file watcher for better development experience
 fileWatcherType = "auto"
