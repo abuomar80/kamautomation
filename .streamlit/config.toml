@@ -6,9 +6,6 @@ maxUploadSize = 800
 # Enable file watcher for better development experience
 fileWatcherType = "auto"
 
-# Allow cross-origin requests (useful for development)
-enableCORS = false
-
 # Enable XSRF protection
 enableXsrfProtection = true
 
